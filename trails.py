@@ -26,7 +26,9 @@ gdb_output = data_path + gdb_name
 extent_4_counties = "Geography\\Boundaries_4_PA_counties_dissolved"
 #lts3_lines = gdb_output + "\\LTS3_top20_connectivity"
 CII_score_overall = "Overall_Scores\\Impact_Score_Overall"
-islands = "Islands\\LTS1_2_islands_dissolved_gte_1000m_no0Strong_4counties_SAMPLE"
+islands_orig = "Islands\\DVRPC_Bike_Stress_LTS_1__2_Islands"
+#islands = "Islands\\LTS1_2_islands_dissolved_gte_1000m_no0Strong_4counties_SAMPLE"
+islands = gdb_output + "\\islands"
 buffered_islands = gdb_output + "\\buffered_islands"
 islands_with_CII_scores_table = gdb_output + "\\islandsWithCIIScores_table"
 islands_with_score =  gdb_output + "\\islands_with_score"
@@ -58,6 +60,34 @@ def prep_gdb():
 
 # Prepare the LTS1-2 Islands layer:
 def prep_islands():
+    # Define the local variables:
+    islands_proj = gdb_output + "\\islands_proj"
+    islands_dissolved = gdb_output + "\\islands_dissolved"
+    islands_gt_0 = gdb_output + "\\islands_gt_0"
+    islands_gte_1000m = gdb_output + "\\islands_gte_1000m"
+
+    # Reproject the original Islands layer:
+    target_spatial_reference = arcpy.SpatialReference('NAD 1983 UTM Zone 18N')
+    arcpy.Project_management(islands_orig, islands_proj, target_spatial_reference, "WGS_1984_(ITRF00)_To_NAD_1983")
+    # Dissolve the layer on the STRONG field -- there is now only 1 polyline per island:
+    arcpy.Dissolve_management(islands_proj, islands_dissolved, "STRONG")
+
+    # Remove the islands where STRONG is 0, as 0 stands in for a catch all category:
+    arcpy.SelectLayerByAttribute_management("islands_dissolved", "NEW_SELECTION", "STRONG > 0")
+    # Save to a new feature class and do some clean up:
+    arcpy.CopyFeatures_management("islands_dissolved", islands_gt_0)
+    arcpy.SelectLayerByAttribute_management("islands_dissolved", "CLEAR_SELECTION")
+
+    # Keep only the islands greater than 1000 meters in length, as the really tiny islands do not seem worth our attention.
+    arcpy.SelectLayerByAttribute_management("islands_gt_0", "NEW_SELECTION", "Shape_Length >= 1000")
+    # Save to a new feature class and do some clean up:
+    arcpy.CopyFeatures_management("islands_gt_0", islands_gte_1000m)
+    arcpy.SelectLayerByAttribute_management("islands_gt_0", "CLEAR_SELECTION")
+
+    # Select only the island polylines that intersects with 4 PA counties, with a spatial join:
+    arcpy.SpatialJoin_analysis(islands_gte_1000m, extent_4_counties, islands,
+                               "JOIN_ONE_TO_ONE", "KEEP_COMMON", match_option="INTERSECT")
+
     # Add new field "Orig_Length". We will use it later.
     arcpy.AddField_management(islands, "Orig_Length", "DOUBLE")
     arcpy.CalculateField_management(islands, "Orig_Length", "!Shape_Length!", "PYTHON_9.3")
@@ -65,6 +95,8 @@ def prep_islands():
     # Create a 100 meter buffer arounds the islands
     arcpy.Buffer_analysis(islands, buffered_islands, "100 Meters", "FULL", "ROUND")
 
+
+def compute_CII_per_island():
     # Compute the CII score per island as zonal statistics:
     arcpy.CheckOutExtension("Spatial")
     arcpy.sa.ZonalStatisticsAsTable(buffered_islands, "STRONG", CII_Score_Overall,
@@ -175,10 +207,11 @@ def compute_trail_scores():
 # Begin Main
 print_time_stamp("Start")
 set_up_env()
-prep_gdb()
-prep_islands()
-prep_trails()
-find_trail_island_intersections()
-filter_2_or_more_islands()
-compute_trail_scores()
+#prep_gdb()
+prep_islands2()
+#compute_CII_per_island()
+#prep_trails()
+#find_trail_island_intersections()
+#filter_2_or_more_islands()
+#compute_trail_scores()
 print_time_stamp("Done")
