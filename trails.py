@@ -1,7 +1,5 @@
-# Command: execfile(r'C:\Users\delph\Desktop\GIS\ArcPy_Scripts\BCGP3\C:\Users\delph\Desktop\Github_repos\Connectivity-And-Impact\trails.py')
-# **************************************
 
-# *****************************************
+# ***************************************
 # ***Overview***
 # Script name: trails.py
 # Purpose: This Arcpy script identifies the non-circuit trails with the highest connectivity and community impact score.
@@ -11,9 +9,9 @@
 # Author: Delphine Khanna
 # Organization: Bicycle Coalition of Greater Philadelphia
 # Note: This Arcpy script is meant to run in ArcGIS Desktop. It is NOT optimized for complete unsupervised automation.
-# *****************************************
+# Command: execfile(r'C:\Users\delph\Desktop\Github_repos\Connectivity-And-Impact\trails.py')
+# ***************************************
 
-# Import modules:
 import arcpy
 import arcpy.sa
 import arcpy.da
@@ -21,7 +19,7 @@ import datetime
 
 # *********
 # Set up global variables:
-gdb_name = "\\ScriptOutput.gdb"
+gdb_name = "\\ScriptOutput2.gdb"
 base_path = "C:\\Users\\delph\\Desktop\\GIS\\BCGP\\Connectivity_and_impact"
 data_path = base_path + "\\Data"
 gdb_output = data_path + gdb_name
@@ -55,8 +53,8 @@ def set_up_env():
 
 # Create a new geodatabase and to put all the output for this batch:
 def prep_gdb():
-    ##arcpy.Delete_management(gdb_output)
-    arcpy.CreateFileGDB_management (data_path, gdb_name)
+    arcpy.Delete_management(gdb_output)
+    arcpy.CreateFileGDB_management(data_path, gdb_name)
 
 # Prepare the LTS1-2 Islands layer:
 def prep_islands():
@@ -72,8 +70,6 @@ def prep_islands():
     arcpy.sa.ZonalStatisticsAsTable(buffered_islands, "STRONG", CII_Score_Overall,
                                     islands_with_CII_scores_table, "DATA", "MEAN")
     # Rename field MEAN to CII_Score_Overall
-    arcpy.AlterField_management(islands_with_CII_scores_table, "LTS1_2_islands_dissolved_gte_1000m_no0Strong_4counties_SAMPLE_ST",
-                                "STRONG")
     arcpy.AlterField_management(islands_with_CII_scores_table, "MEAN", "CII_Score_Overall")
     # Join the resulting table back to the original islands feature class:
     arcpy.AddJoin_management(islands, "STRONG", islands_with_CII_scores_table, "STRONG", "KEEP_ALL")
@@ -89,7 +85,7 @@ def prep_islands():
     arcpy.DeleteField_management(islands_with_score, drop_fields)
     # Rename some fields to their alias, to get rid of exagerated long names:
     field_list = arcpy.ListFields(islands_with_score)
-    for field in fieldList:
+    for field in field_list:
         if field.aliasName in ["STRONG", "Orig_length", "CII_Score_Overall"]:
             arcpy.AlterField_management(islands_with_score, field.name, field.aliasName)
 
@@ -106,11 +102,11 @@ def prep_trails():
 def set_up_merge_rules(field_name, merge_rule, field_mappings):
     # Get the field map index of this field and get the field map:
     field_index = field_mappings.findFieldMapIndex(field_name)
-    field_map = fieldMappings.getFieldMap(field_index)
+    field_map = field_mappings.getFieldMap(field_index)
     # Update the field map with the new merge rule (by default the merge rule is "First"):
-    fieldMap.mergeRule = merge_rule
+    field_map.mergeRule = merge_rule
     # Replace with the updated field map:
-    fieldMappings.replaceFieldMap(field_index, field_map)
+    field_mappings.replaceFieldMap(field_index, field_map)
 
 # For each trail, find all intersecting islands:
 def find_trail_island_intersections():
@@ -141,7 +137,8 @@ def find_trail_island_intersections():
 # Keep only the trails that intersect with 2 islands or more:
 def filter_2_or_more_islands():
     #Select by Attribute trails that intersect with 2 islands or more:
-    arcpy.SelectLayerByAttribute_management("trails_intersecting", "NEW_SELECTION", "Num_of_Islands >=2")
+    ### Later on >=2
+    arcpy.SelectLayerByAttribute_management("trails_intersecting", "NEW_SELECTION", "Num_of_Islands >=1")
     # Save to a new feature class and do some clean up:
     arcpy.CopyFeatures_management("trails_intersecting", trails_intersecting_gte_2)
     arcpy.SelectLayerByAttribute_management("trails_intersecting", "CLEAR_SELECTION")
@@ -162,13 +159,13 @@ def compute_trail_scores():
 
     length_of_all_islands_max = get_max("trails_intersecting","Length_of_All_Islands")
     num_of_islands_max = get_max("trails_intersecting","Num_of_Islands")
-    Trail_CII_Score_max = get_max("trails_intersecting","Trail_CII_Score")
-    #print(length_of_all_Islands_max)
-    #print(num_of_Islands_max)
-    #print(trail_CII_Score_max)
-    expr = ("(((!Length_of_all_Islands! /" + str(length_of_all_Islands_max) +
-            " + !Num_of_Islands! / " + str(num_of_Islands_max) +
-            " + !Trail_CII_Score!/" + str(trail_CII_Score_max) +
+    trail_CII_score_max = get_max("trails_intersecting","Trail_CII_Score")
+    #print(length_of_all_islands_max)
+    #print(num_of_islands_max)
+    #print(trail_CII_score_max)
+    expr = ("(((!Length_of_all_Islands! /" + str(length_of_all_islands_max) +
+            " + !Num_of_Islands! / " + str(num_of_islands_max) +
+            " + !Trail_CII_Score!/" + str(trail_CII_score_max) +
             ")/3)*100)")
     #print(expr)
     arcpy.CalculateField_management(trails_intersecting_gte_2, "Total_connectivity_score",
@@ -182,5 +179,6 @@ prep_gdb()
 prep_islands()
 prep_trails()
 find_trail_island_intersections()
+filter_2_or_more_islands()
 compute_trail_scores()
 print_time_stamp("Done")
