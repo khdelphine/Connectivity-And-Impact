@@ -148,6 +148,13 @@ def compute_CII_scores_per_lts3_NOT():
         print("num_of_rows: " + str(num_of_rows))
         print("i: "+ str(i))
 
+def rank_by_score():
+    test_small = gdb_output + "\\test_small"
+    test_sorted = gdb_output + "\\test_sorted"
+
+    #arcpy.Sort_management(test_small, test_sorted, [["Total", "DESCENDING"]])
+    #arcpy.AddField_management(test_sorted, "Rank", "LONG")
+    arcpy.CalculateField_management(test_sorted, "Rank", "!OBJECTID_1!", "PYTHON_9.3")
 
 def select_top_third():
     1
@@ -160,5 +167,6 @@ set_up_env()
 #prep_gdb()
 #select_top30pct_lts3()
 #buffer_lts3()
-compute_CII_scores_per_lts3()
+#compute_CII_scores_per_lts3()
+rank_by_score()
 print_time_stamp("Done")
