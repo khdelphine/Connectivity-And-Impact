@@ -152,12 +152,18 @@ def rank_by_score():
     test_small = gdb_output + "\\test_small"
     test_sorted = gdb_output + "\\test_sorted"
 
-    #arcpy.Sort_management(test_small, test_sorted, [["Total", "DESCENDING"]])
-    #arcpy.AddField_management(test_sorted, "Rank", "LONG")
+    arcpy.Sort_management(test_small, test_sorted, [["Total", "DESCENDING"]])
+    arcpy.AddField_management(test_sorted, "Rank", "LONG")
     arcpy.CalculateField_management(test_sorted, "Rank", "!OBJECTID_1!", "PYTHON_9.3")
 
 def select_top_third():
-    1
+    test_sorted = gdb_output + "\\test_sorted"
+    test_top_scores = gdb_output + "\\test_top_scores"
+
+    # Select by attribute where the Rank is less than 10
+    arcpy.SelectLayerByAttribute_management("test_sorted", "NEW_SELECTION", "Rank <= 10")
+    arcpy.CopyFeatures_management("test_sorted", test_top_scores)
+    arcpy.SelectLayerByAttribute_management("test_sorted", "CLEAR_SELECTION")
 
 
 # ***************************************
@@ -168,5 +174,6 @@ set_up_env()
 #select_top30pct_lts3()
 #buffer_lts3()
 #compute_CII_scores_per_lts3()
-rank_by_score()
+#rank_by_score()
+select_top_third()
 print_time_stamp("Done")
