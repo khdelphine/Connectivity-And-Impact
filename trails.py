@@ -18,19 +18,21 @@ import arcpy.da
 import datetime
 
 # *********
+# Option switch:
+REMOVE_INTERMEDIARY_LAYERS_OPTION = "yes" # or "no"
+
+# *********
 # Set up global variables:
 gdb_name = "\\ScriptOutput2.gdb"
 base_path = "C:\\Users\\delph\\Desktop\\GIS\\BCGP\\Connectivity_and_impact"
 data_path = base_path + "\\Data"
 gdb_output = data_path + gdb_name
 extent_4_counties = "Geography\\Boundaries_4_PA_counties_dissolved"
-#lts3_lines = gdb_output + "\\LTS3_top20_connectivity"
 CII_score_overall = "Overall_Scores\\Impact_Score_Overall"
 islands_orig = "Islands\\DVRPC_Bike_Stress_LTS_1__2_Islands"
-#islands = "Islands\\LTS1_2_islands_dissolved_gte_1000m_no0Strong_4counties_SAMPLE"
+###islands = "Islands\\LTS1_2_islands_dissolved_gte_1000m_no0Strong_4counties_SAMPLE"
 islands = gdb_output + "\\islands"
 buffered_islands = gdb_output + "\\buffered_islands"
-islands_with_CII_scores_table = gdb_output + "\\islandsWithCIIScores_table"
 islands_with_score =  gdb_output + "\\islands_with_score"
 trails = "Non-Circuit_Trails\\Trails_Non_Circuit_Proj_4counties"
 trails_intersecting = gdb_output + "\\trails_intersecting"
@@ -57,6 +59,15 @@ def set_up_env():
 def prep_gdb():
     arcpy.Delete_management(gdb_output)
     arcpy.CreateFileGDB_management(data_path, gdb_name)
+
+# Optionally remove intermediary layers generated during the analysis:
+def remove_intermediary_layers(layers_to_remove):
+    if REMOVE_INTERMEDIARY_LAYERS_OPTION == "yes":
+        mxd=arcpy.mapping.MapDocument("CURRENT")
+        df = arcpy.mapping.ListDataFrames(mxd)[0]
+        for lyr in arcpy.mapping.ListLayers(mxd, "", df):
+            if lyr.name in layers_to_remove:
+                arcpy.mapping.RemoveLayer(df, lyr)
 
 # Prepare the LTS1-2 Islands layer:
 def prep_islands():
@@ -95,8 +106,14 @@ def prep_islands():
     # Create a 100 meter buffer arounds the islands
     arcpy.Buffer_analysis(islands, buffered_islands, "100 Meters", "FULL", "ROUND")
 
+    # Cleanup
+    remove_intermediary_layers(["islands_proj","islands_dissolved",
+                                "islands_gt_0", "islands_gte_1000m"])
 
 def compute_CII_per_island():
+    # Define the local variables:
+    islands_with_CII_scores_table = gdb_output + "\\islands_with_CII_scores_table"
+
     # Compute the CII score per island as zonal statistics:
     arcpy.CheckOutExtension("Spatial")
     arcpy.sa.ZonalStatisticsAsTable(buffered_islands, "STRONG", CII_Score_Overall,
@@ -120,6 +137,8 @@ def compute_CII_per_island():
     for field in field_list:
         if field.aliasName in ["STRONG", "Orig_length", "CII_Score_Overall"]:
             arcpy.AlterField_management(islands_with_score, field.name, field.aliasName)
+    # Remove intermediary layer:
+    remove_intermediary_layers(["islands_with_CII_scores_table"])
 
 # Prepare the Non-Circuit Trails layer:
 def prep_trails():
@@ -165,6 +184,9 @@ def find_trail_island_intersections():
     # Delete an unnecessary field:
     drop_fields = ["TARGET_FID"]
     arcpy.DeleteField_management(trails_intersecting, drop_fields)
+    # Remove intermediary layer:
+    remove_intermediary_layers(["trails_intersecting"])
+
 
 # Keep only the trails that intersect with 2 islands or more:
 def filter_2_or_more_islands():
@@ -207,11 +229,11 @@ def compute_trail_scores():
 # Begin Main
 print_time_stamp("Start")
 set_up_env()
-#prep_gdb()
-prep_islands2()
-#compute_CII_per_island()
-#prep_trails()
-#find_trail_island_intersections()
-#filter_2_or_more_islands()
-#compute_trail_scores()
+prep_gdb()
+prep_islands()
+compute_CII_per_island()
+prep_trails()
+find_trail_island_intersections()
+filter_2_or_more_islands()
+compute_trail_scores()
 print_time_stamp("Done")
