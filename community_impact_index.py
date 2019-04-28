@@ -88,16 +88,23 @@ def prep_pop_density_dataset():
     arcpy.Project_management(pa_census_tracts_orig, pa_census_tracts_proj, target_spatial_reference)
 
     # Clip to the boundaries of 4_counties_dissolved
-    arcpy.SpatialJoin_analysis(pa_census_tracts_proj, extent_4_counties, pa_census_tracts_clipped,
+    arcpy.SpatialJoin_analysis(pa_census_tracts_proj, extent_4_counties, "pa_census_tracts_clipped",
                               "JOIN_ONE_TO_ONE", "KEEP_COMMON", match_option="HAVE_THEIR_CENTER_IN")
+    # Remove the extra tract that got included because of its weirdly-placed centroid
+    # XXX This does not work the way it should XXX
+    arcpy.SelectLayerByAttribute_management("pa_census_tracts_clipped", "NEW_SELECTION",
+                                            "GEOID <> '42101006500'")
+    # Save to a new feature class and do some clean up:
+    arcpy.CopyFeatures_management("pa_census_tracts_clipped", "pa_census_tracts_clipped1")
+    arcpy.SelectLayerByAttribute_management("pa_census_tracts_clipped", "CLEAR_SELECTION")
 
-    # Import the table with the Total Population data
+    # Import the table with the ACS Total Population data
     arcpy.TableToTable_conversion(population_table_orig, gdb_output, 'pop_table')
 
     # Join the table to the Census tracts:
-    #arcpy.AddJoin_management("pa_census_tracts_clipped", "GEOID", pop_table, "GEO_id2", "KEEP_ALL")
-    arcpy.CopyFeatures_management("pa_census_tracts_clipped", tracts_with_pop)
-    arcpy.RemoveJoin_management("pa_census_tracts_clipped")
+    arcpy.AddJoin_management("pa_census_tracts_clipped1", "GEOID", pop_table, "GEO_id2", "KEEP_ALL")
+    arcpy.CopyFeatures_management("pa_census_tracts_clipped1", tracts_with_pop)
+    arcpy.RemoveJoin_management("pa_census_tracts_clipped1")
 
     # Add new Long field "TotalPop" and put the value of String field HD01_VD01:
     arcpy.AddField_management(tracts_with_pop, "TotalPop", "Double")
@@ -109,7 +116,7 @@ def prep_pop_density_dataset():
     # pa_census_tracts_clipped_ALAND converted to sq km:
     arcpy.AddField_management(tracts_with_pop, "AlandSqKm", "Double")
     arcpy.CalculateField_management(tracts_with_pop, "AlandSqKm",
-                                    "!pa_census_tracts_clipped_ALAND! / 1000000",
+                                    "!pa_census_tracts_clipped1_ALAND! / 1000000",
                                     "PYTHON_9.3")
 
     # Add new field "PopDensity" and put in it TotalPop divided by AlandSqKm
@@ -129,9 +136,50 @@ def prep_pop_density_dataset():
     arcpy.MakeRasterLayer_management(pop_density_score_ras, "pop_density_score_ras1")
 
     # Cleanup
-    remove_intermediary_layers(["pa_census_tracts_orig","pa_census_tracts_proj",
-                                "pa_census_tracts_clipped", "tracts_with_pop",
-                                "pop_density_ras1"])
+    #remove_intermediary_layers(["pa_census_tracts_orig","pa_census_tracts_proj",
+    #                            "pa_census_tracts_clipped", "pa_census_tracts_clipped1", "pop_table", "tracts_with_pop","pop_density_ras"
+    #                            ])
+
+
+def prep_0_vehicle_dataset_not():
+    commuting_table_orig =  orig_datasets_path + "\\CII\\Vehicle_available\\ACS_17_5YR_S0801\\ACS_17_5YR_S0801_with_ann.csv"
+
+    # Load the feature class and table into the MXD
+    arcpy.MakeFeatureLayer_management("pa_census_tracts_clipped1", "pa_census_tracts_clipped1")
+
+    # Import the table with ACS Commuting data
+    arcpy.TableToTable_conversion(commuting_table_orig, gdb_output, "commuting_table")
+
+    # Join the table to the Census tracts:
+    arcpy.AddJoin_management("pa_census_tracts_clipped1", "GEOID", "commuting_table", "GEO_id2", "KEEP_ALL")
+    arcpy.CopyFeatures_management("pa_census_tracts_clipped1", "tracts_with_commuting")
+    arcpy.RemoveJoin_management("pa_census_tracts_clipped1")
+
+    # Add new Float field "NoVehiclePct" and put the value of String field HC01_EST_VC59:
+    arcpy.AddField_management("tracts_with_commuting", "NoVehiclePct", "Float")
+    expression = "convert_value(!commuting_table_HC01_EST_VC59!)"
+    codeblock = """def convert_value(str_value):
+        if str_value == "-":
+            return 0
+        else:
+            return float(str_value)"""
+
+    arcpy.CalculateField_management("tracts_with_commuting", "NoVehiclePct",
+                                    expression, "PYTHON_9.3", codeblock)
+    # Convert into a raster
+    arcpy.PolygonToRaster_conversion ("tracts_with_commuting", "NoVehiclePct",
+                                      "no_vehicle_available_ras")
+
+    # reclassify the raster to 1-to-20 score using the Jenks natural breaks classification
+    arcpy.CheckOutExtension("Spatial")
+    outslice = arcpy.sa.Slice("no_vehicle_available_ras", 20, "NATURAL_BREAKS")
+    outslice.save("no_vehicle_score_ras")
+    # Display the resulting raster (note that the tool demands a slightly different name for the layer)
+    arcpy.MakeRasterLayer_management("no_vehicle_score_ras", "no_vehicle_score_ras1")
+
+    # Cleanup
+    remove_intermediary_layers(["pa_census_tracts_clipped1","commuting_table",
+                                "tracts_with_commuting", "no_vehicle_available_ras"])
 
 def prep_idp_dataset():
     # Local variables
@@ -194,7 +242,7 @@ def prep_circuit_trails_dataset():
     arcpy.MakeRasterLayer_management(circuit_trails_score_ras, "circuit_trails_score_ras1")
 
     # Clean up
-    #remove_intermediary_layers(["circuit_trails_orig", "circuit_trails", "circuit_trails_distance_ras1"])
+    remove_intermediary_layers(["circuit_trails_orig", "circuit_trails", "circuit_trails_distance_ras1"])
 
 def prep_rail_dataset():
     # Local variables
@@ -340,6 +388,7 @@ def compute_intermediary_scores():
 def prep_all_datasets():
     prep_idp_dataset()
     prep_pop_density_dataset()
+    prep_0_vehicle_dataset()
     prep_circuit_trails_dataset()
     prep_bus_dataset()
     prep_rail_dataset()
@@ -350,6 +399,5 @@ print_time_stamp("Start")
 set_up_env()
 prep_gdb()
 prep_all_datasets()
-big_cleanup()
 compute_intermediary_scores()
 print_time_stamp("Done")
