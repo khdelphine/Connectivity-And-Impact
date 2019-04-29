@@ -419,23 +419,49 @@ def prep_obesity_dataset():
     # Cleanup
     remove_intermediary_layers(["obesity_ras1"])
 
-def compute_transit_scores():
-    # Compute score raster for transit
-    total_ras = (arcpy.Raster("rail_score_ras1")*0.5 +
-                 arcpy.Raster("trolley_score_ras1")*0.3 +
-                 arcpy.Raster("bus_score_ras1")*0.2)
-    total_ras.save("transit_score_ras")
+def compute_density_scores():
+    # Compute score raster for density
+    total_ras = (arcpy.Raster("pop_density_score_ras1")*0.67 +
+                 arcpy.Raster("employment_score_ras1")*0.33)
+    total_ras.save("density_score_ras")
     # Display the new raster
-    arcpy.MakeRasterLayer_management("transit_score_ras", "transit_score_ras1")
+    arcpy.MakeRasterLayer_management("density_score_ras", "density_score_ras1")
 
 def compute_transportation_scores():
     # Compute score raster for transit
     total_ras = (arcpy.Raster("circuit_trails_score_ras1")*0.5 +
-                 #arcpy.Raster("trolley_score_ras1")*0.3 +
-                 arcpy.Raster("transit_score_ras1")*0.5)
+                 arcpy.Raster("no_vehicle_score_ras1")*0.27 +
+                 arcpy.Raster("rail_score_ras1")*0.13 +
+                 arcpy.Raster("trolley_score_ras1")*0.07 +
+                 arcpy.Raster("bus_score_ras1")*0.03)
     total_ras.save("transportation_score_ras")
     # Display the new raster
     arcpy.MakeRasterLayer_management("transportation_score_ras", "transportation_score_ras1")
+
+def compute_health_scores():
+    # Compute score raster for health / environment
+    total_ras = (arcpy.Raster("obesity_score_ras1")*0.5 +
+                 arcpy.Raster("nata_resp_score_ras1")*0.5)
+    total_ras.save("health_score_ras")
+    # Display the new raster
+    arcpy.MakeRasterLayer_management("health_score_ras", "health_score_ras1")
+
+def compute_CII_overall_scores():
+    # Compute score raster for Community Impact Index (CII) overall scores
+    total_ras = (arcpy.Raster("ipd_score_ras1")*0.3 +
+                 arcpy.Raster("density_score_ras1")*0.3 +
+                 arcpy.Raster("transportation_score_ras1")*0.3 +
+                 arcpy.Raster("health_score_ras1")*0.1)
+    total_ras.save("cii_overall_score_ras")
+    # Display the new raster
+    arcpy.MakeRasterLayer_management("cii_overall_score_ras", "cii_overall_score_ras1")
+
+
+def compute_all_aggregated_scores():
+    compute_density_scores()
+    compute_transportation_scores()
+    compute_health_scores()
+    compute_CII_overall_scores()
 
 def prep_all_datasets():
     prep_idp_dataset()
@@ -456,5 +482,5 @@ print_time_stamp("Start")
 set_up_env()
 prep_gdb()
 prep_all_datasets()
-compute_intermediary_scores()
+compute_all_aggregated_scores()
 print_time_stamp("Done")
