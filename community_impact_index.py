@@ -26,7 +26,7 @@ REMOVE_INTERMEDIARY_LAYERS_OPTION = "yes" # or "no"
 
 # *********
 # Set up global variables:
-gdb_name = "\\script_output_CII.gdb"
+gdb_name = "\\script_output_CII2.gdb"
 base_path = "C:\\Users\\delph\\Desktop\\GIS\\BCGP\\Connectivity_and_impact"
 data_path = base_path + "\\Data"
 orig_datasets_path = data_path + "\\Orig_datasets"
@@ -68,6 +68,32 @@ def remove_intermediary_layers(layers_to_remove):
         for lyr in arcpy.mapping.ListLayers(mxd, "", df):
             if lyr.name in layers_to_remove:
                 arcpy.mapping.RemoveLayer(df, lyr)
+
+def prep_idp_dataset():
+    # Local variables
+    ipd =  orig_datasets_path + "\\CII\\DVRPC_2016_Indicators_of_Potential_Disadvantage\\DVRPC_2016_Indicators_of_Potential_Disadvantage.shp"
+    ipd_clipped = gdb_output + "\\ipd_clipped"
+    ipd_ras = gdb_output + "\\ipd_ras"
+    ipd_score_ras = gdb_output + "\\ipd_score_ras"
+
+    # Load the feature class into the MXD
+    arcpy.MakeFeatureLayer_management(ipd, "idp")
+    # NO need to reproject (already in NAD 1983 UTM Zone 18N)
+    # Clip to the boundaries of 4_counties_dissolved
+    arcpy.SpatialJoin_analysis(ipd, extent_4_counties, ipd_clipped,
+                            "JOIN_ONE_TO_ONE", "KEEP_COMMON", match_option="HAVE_THEIR_CENTER_IN")
+    # Convert into a raster
+    arcpy.PolygonToRaster_conversion (ipd_clipped, "IPD_Score", ipd_ras)
+
+    # reclassify the raster to 1-to-20 score using the Jenks natural breaks classification
+    arcpy.CheckOutExtension("Spatial")
+    outslice = arcpy.sa.Slice(ipd_ras, 20, "NATURAL_BREAKS")
+    outslice.save(ipd_score_ras)
+    # Display the resulting raster (note that the tool demands a slightly different name for the layer)
+    arcpy.MakeRasterLayer_management(ipd_score_ras, "ipd_score_ras1")
+
+    # Cleanup
+    remove_intermediary_layers(["idp","ipd_clipped", "ipd_ras"])
 
 def prep_pop_density_dataset():
     # Local variables
@@ -136,12 +162,72 @@ def prep_pop_density_dataset():
     arcpy.MakeRasterLayer_management(pop_density_score_ras, "pop_density_score_ras1")
 
     # Cleanup
-    #remove_intermediary_layers(["pa_census_tracts_orig","pa_census_tracts_proj",
-    #                            "pa_census_tracts_clipped", "pa_census_tracts_clipped1", "pop_table", "tracts_with_pop","pop_density_ras"
-    #                            ])
+    remove_intermediary_layers(["pa_census_tracts_orig","pa_census_tracts_proj",
+                                "pa_census_tracts_clipped", "pa_census_tracts_clipped1", "pop_table", "tracts_with_pop","pop_density_ras"
+                                ])
 
+def prep_employment_dataset():
+    # Local variables
+    employment_clipped = data_path + "\\XXXstop_gap.gdb\\Employment_BusinessPatternZip_with_pop_DVRPC_Counties"
 
-def prep_0_vehicle_dataset_not():
+    # Display the raster
+    arcpy.MakeFeatureLayer_management(employment_clipped, "employment_clipped")
+
+    # Convert into a raster
+    arcpy.PolygonToRaster_conversion ("employment_clipped", "Emp_density",
+                                          "employment_ras")
+    # Clip the raster to the shape of the 4 counties
+    arcpy.Clip_management("employment_ras", "#", "employment_clipped_ras",
+                    extent_4_counties, "#", "ClippingGeometry")
+
+    # Reclassify the raster to 1-to-20 score using the Jenks natural breaks classification
+    arcpy.CheckOutExtension("Spatial")
+    outslice = arcpy.sa.Slice("employment_clipped_ras", 20, "NATURAL_BREAKS")
+    outslice.save("employment_score_ras")
+    # Display the resulting raster
+    arcpy.MakeRasterLayer_management("employment_score_ras", "employment_score_ras1")
+
+    # Cleanup
+    remove_intermediary_layers(["employment_clipped","employment_ras", "employment_clipped_ras"])
+
+def prep_circuit_trails_dataset():
+    # Local variables
+    circuit_trails_orig =  orig_datasets_path + "\\CII\\DVRPC_Circuit_Trails_20190328\\DVRPC_Circuit_Trails.shp"
+    circuit_trails = gdb_output + "\\circuit_trails"
+    circuit_trails_distance_ras = gdb_output + "\\circuit_trails_distance_ras"
+    circuit_trails_score_ras = gdb_output + "\\circuit_trails_score_ras"
+    # Load the feature class into the MXD
+    arcpy.MakeFeatureLayer_management(circuit_trails_orig, "circuit_trails_orig")
+
+    # Remove the partial trolley data present in the dataset
+    arcpy.SelectLayerByAttribute_management("circuit_trails_orig", "NEW_SELECTION",
+                                            "Circuit = 'Existing' OR Circuit = 'In Progress' ")
+    # Save to a new feature class and do some clean up:
+    arcpy.CopyFeatures_management("circuit_trails_orig", circuit_trails)
+    arcpy.SelectLayerByAttribute_management("circuit_trails_orig", "CLEAR_SELECTION")
+
+    # Compute the Euclidean distance raster to the rail stops
+    outEucDistance = arcpy.sa.EucDistance(circuit_trails)
+    outEucDistance.save(circuit_trails_distance_ras)
+    # Display the resulting raster (note that the tool demands a slightly different name for the layer)
+    arcpy.MakeRasterLayer_management(circuit_trails_distance_ras, "circuit_trails_distance_ras1")
+
+    # Reclassify the raster based on chosen thresholds
+    # First, convert distances in miles into meters:
+    one_mile = 1609.34
+    # Approximate maximun distance within the extent (in meters) for the upper bound
+    max_distance = 134000
+    circuit_remap_range = arcpy.sa.RemapRange([[0, one_mile , 20],
+                                                [one_mile, max_distance, 1]])
+    # Perform the reclassification and display it
+    outReclassRaster = arcpy.sa.Reclassify(circuit_trails_distance_ras, "Value", circuit_remap_range)
+    outReclassRaster.save(circuit_trails_score_ras)
+    arcpy.MakeRasterLayer_management(circuit_trails_score_ras, "circuit_trails_score_ras1")
+
+    # Clean up
+    remove_intermediary_layers(["circuit_trails_orig", "circuit_trails", "circuit_trails_distance_ras1"])
+
+def prep_0_vehicle_dataset():
     commuting_table_orig =  orig_datasets_path + "\\CII\\Vehicle_available\\ACS_17_5YR_S0801\\ACS_17_5YR_S0801_with_ann.csv"
 
     # Load the feature class and table into the MXD
@@ -180,69 +266,6 @@ def prep_0_vehicle_dataset_not():
     # Cleanup
     remove_intermediary_layers(["pa_census_tracts_clipped1","commuting_table",
                                 "tracts_with_commuting", "no_vehicle_available_ras"])
-
-def prep_idp_dataset():
-    # Local variables
-    ipd =  orig_datasets_path + "\\CII\\DVRPC_2016_Indicators_of_Potential_Disadvantage\\DVRPC_2016_Indicators_of_Potential_Disadvantage.shp"
-    ipd_clipped = gdb_output + "\\ipd_clipped"
-    ipd_ras = gdb_output + "\\ipd_ras"
-    ipd_score_ras = gdb_output + "\\ipd_score_ras"
-
-    # Load the feature class into the MXD
-    arcpy.MakeFeatureLayer_management(ipd, "idp")
-    # NO need to reproject (already in NAD 1983 UTM Zone 18N)
-    # Clip to the boundaries of 4_counties_dissolved
-    arcpy.SpatialJoin_analysis(ipd, extent_4_counties, ipd_clipped,
-                            "JOIN_ONE_TO_ONE", "KEEP_COMMON", match_option="HAVE_THEIR_CENTER_IN")
-    # Convert into a raster
-    arcpy.PolygonToRaster_conversion (ipd_clipped, "IPD_Score", ipd_ras)
-
-    # reclassify the raster to 1-to-20 score using the Jenks natural breaks classification
-    arcpy.CheckOutExtension("Spatial")
-    outslice = arcpy.sa.Slice(ipd_ras, 20, "NATURAL_BREAKS")
-    outslice.save(ipd_score_ras)
-    # Display the resulting raster (note that the tool demands a slightly different name for the layer)
-    arcpy.MakeRasterLayer_management(ipd_score_ras, "ipd_score_ras1")
-
-    # Cleanup
-    remove_intermediary_layers(["idp","ipd_clipped", "ipd_ras"])
-
-def prep_circuit_trails_dataset():
-    # Local variables
-    circuit_trails_orig =  orig_datasets_path + "\\CII\\DVRPC_Circuit_Trails_20190328\\DVRPC_Circuit_Trails.shp"
-    circuit_trails = gdb_output + "\\circuit_trails"
-    circuit_trails_distance_ras = gdb_output + "\\circuit_trails_distance_ras"
-    circuit_trails_score_ras = gdb_output + "\\circuit_trails_score_ras"
-    # Load the feature class into the MXD
-    arcpy.MakeFeatureLayer_management(circuit_trails_orig, "circuit_trails_orig")
-
-    # Remove the partial trolley data present in the dataset
-    arcpy.SelectLayerByAttribute_management("circuit_trails_orig", "NEW_SELECTION",
-                                            "Circuit = 'Existing' OR Circuit = 'In Progress' ")
-    # Save to a new feature class and do some clean up:
-    arcpy.CopyFeatures_management("circuit_trails_orig", circuit_trails)
-    arcpy.SelectLayerByAttribute_management("circuit_trails_orig", "CLEAR_SELECTION")
-
-    # Compute the Euclidean distance raster to the rail stops
-    outEucDistance = arcpy.sa.EucDistance(circuit_trails)
-    outEucDistance.save(circuit_trails_distance_ras)
-    # Display the resulting raster (note that the tool demands a slightly different name for the layer)
-    arcpy.MakeRasterLayer_management(circuit_trails_distance_ras, "circuit_trails_distance_ras1")
-
-    # Reclassify the raster based on chosen thresholds
-    # First, convert distances in miles into meters:
-    one_mile = 1609.34
-    # Approximate maximun distance within the extent (in meters) for the upper bound
-    max_distance = 134000
-    circuit_remap_range = arcpy.sa.RemapRange([[0, one_mile , 20],
-                                                [one_mile, max_distance, 1]])
-    # Perform the reclassification and display it
-    outReclassRaster = arcpy.sa.Reclassify(circuit_trails_distance_ras, "Value", circuit_remap_range)
-    outReclassRaster.save(circuit_trails_score_ras)
-    arcpy.MakeRasterLayer_management(circuit_trails_score_ras, "circuit_trails_score_ras1")
-
-    # Clean up
-    remove_intermediary_layers(["circuit_trails_orig", "circuit_trails", "circuit_trails_distance_ras1"])
 
 def prep_rail_dataset():
     # Local variables
@@ -356,43 +379,77 @@ def prep_bus_dataset():
     # Clean up
     remove_intermediary_layers(["bus_stops_orig","bus_stops_proj", "bus_stops_distance_ras1"])
 
-def compute_transit_scores():
+def prep_nata_resp_dataset():
     # Local variables
-    transit_score_ras = gdb_output + "\\transit_score_ras"
+    ejscreen_orig = data_path + "\\XXXstop_gap.gdb\\Health_JSCREEN_Tract_DVRPC_9_Counties_proj"
 
+    # Load the feature class and table into the MXD
+    arcpy.MakeFeatureLayer_management(ejscreen_orig, "ejscreen_orig")
+
+    # Clip to the boundaries of 4_counties_dissolved
+    arcpy.SpatialJoin_analysis(ejscreen_orig, extent_4_counties, "ejscreen_clipped",
+                              "JOIN_ONE_TO_ONE", "KEEP_COMMON", match_option="HAVE_THEIR_CENTER_IN")
+    # Convert into a raster
+    arcpy.PolygonToRaster_conversion ("ejscreen_clipped", "RESP",
+                                          "nata_resp_ras")
+
+    # reclassify the raster to 1-to-20 score using the Jenks natural breaks classification
+    arcpy.CheckOutExtension("Spatial")
+    outslice = arcpy.sa.Slice("nata_resp_ras", 20, "NATURAL_BREAKS")
+    outslice.save("nata_resp_score_ras")
+    # Display the resulting raster
+    arcpy.MakeRasterLayer_management("nata_resp_score_ras", "nata_resp_score_ras1")
+
+    # Cleanup
+    remove_intermediary_layers(["ejscreen_orig","ejscreen_clipped","nata_resp_ras"])
+
+def prep_obesity_dataset():
+    obesity_ras = data_path + "\\XXXstop_gap.gdb\\Obesity_PA_normalized_ras"
+
+    # Display the raster
+    arcpy.MakeRasterLayer_management(obesity_ras, "obesity_ras1")
+
+    # reclassify the raster to 1-to-20 score using the Jenks natural breaks classification
+    arcpy.CheckOutExtension("Spatial")
+    outslice = arcpy.sa.Slice("obesity_ras1", 20, "NATURAL_BREAKS")
+    outslice.save("obesity_score_ras")
+    # Display the resulting raster (note that the tool demands a slightly different name for the layer)
+    arcpy.MakeRasterLayer_management("obesity_score_ras", "obesity_score_ras1")
+
+    # Cleanup
+    remove_intermediary_layers(["obesity_ras1"])
+
+def compute_transit_scores():
     # Compute score raster for transit
     total_ras = (arcpy.Raster("rail_score_ras1")*0.5 +
                  arcpy.Raster("trolley_score_ras1")*0.3 +
                  arcpy.Raster("bus_score_ras1")*0.2)
-    total_ras.save(transit_score_ras)
+    total_ras.save("transit_score_ras")
     # Display the new raster
-    arcpy.MakeRasterLayer_management(transit_score_ras, "transit_score_ras1")
+    arcpy.MakeRasterLayer_management("transit_score_ras", "transit_score_ras1")
 
 def compute_transportation_scores():
-    # Local variables
-    transportation_score_ras = gdb_output + "\\transportation_score_ras"
-
     # Compute score raster for transit
     total_ras = (arcpy.Raster("circuit_trails_score_ras1")*0.5 +
                  #arcpy.Raster("trolley_score_ras1")*0.3 +
                  arcpy.Raster("transit_score_ras1")*0.5)
-    total_ras.save(transportation_score_ras)
+    total_ras.save("transportation_score_ras")
     # Display the new raster
-    arcpy.MakeRasterLayer_management(transportation_score_ras, "transportation_score_ras1")
-
-
-def compute_intermediary_scores():
-    compute_transit_scores()
-    compute_transportation_scores()
+    arcpy.MakeRasterLayer_management("transportation_score_ras", "transportation_score_ras1")
 
 def prep_all_datasets():
     prep_idp_dataset()
     prep_pop_density_dataset()
-    prep_0_vehicle_dataset()
+    prep_employment_dataset()
     prep_circuit_trails_dataset()
-    prep_bus_dataset()
+    prep_0_vehicle_dataset()
     prep_rail_dataset()
     prep_trolley_dataset()
+    prep_bus_dataset()
+    prep_nata_resp_dataset()
+    prep_obesity_dataset()
+
+
 # ***************************************
 # Begin Main
 print_time_stamp("Start")
