@@ -51,7 +51,7 @@ def set_up_env():
 def apply_symbolization():
     mxd = arcpy.mapping.MapDocument("CURRENT")
     df = arcpy.mapping.ListDataFrames(mxd)[0]
-    lyrFile = arcpy.mapping.Layer(base_path + "\\Lyr\\cii_overall_score_ras1d.lyr")
+    lyrFile = arcpy.mapping.Layer(base_path + "\\Lyr\\cii_overall_score_ras1e.lyr")
 
     rasters_to_symbolize = ["transportation_score_ras1", "cii_overall_score_ras1",
                             "health_score_ras1", "transportation_score_ras1",
