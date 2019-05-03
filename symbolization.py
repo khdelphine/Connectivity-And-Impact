@@ -5,7 +5,7 @@
 #          based on over 10 criteria of economic and social vulnerability.
 # Project: Connectivity and community impact analysis in Arcpy for potential bicycle infrastructure improvements.
 # Extent: 4 PA Counties in Philadelphia suburbs.
-# Last updated: April, 2019
+# Last updated: May 3, 2019
 # Author: Delphine Khanna
 # Organization: Bicycle Coalition of Greater Philadelphia
 # Note: This Arcpy script is meant to run in ArcGIS Desktop. It is NOT optimized for complete unsupervised automation.
@@ -20,7 +20,7 @@ import arcpy.da
 import datetime
 
 # *********
-# Set up global variables:
+# Set up global variables
 gdb_name = "\\script_output_CII2.gdb"
 base_path = "C:\\Users\\delph\\Desktop\\GIS\\BCGP\\Connectivity_and_impact"
 data_path = base_path + "\\Data"
@@ -29,16 +29,25 @@ gdb_output = data_path + gdb_name
 extent_4_counties = "Geography\\Boundaries_4_PA_counties_dissolved"
 CII_score_overall = "Overall_Scores\\Impact_Score_Overall"
 
+rasters_to_symbolize = ["transportation_score_ras", "cii_overall_score_ras",
+                        "health_score_ras",
+                        "density_score_ras", "ipd_score_ras",
+                        "pop_density_score_ras", "employment_score_ras",
+                        "circuit_trails_score_ras", "no_vehicle_score_ras",
+                        "rail_score_ras", "trolley_score_ras",
+                        "bus_score_ras", "obesity_score_ras",
+                        "nata_resp_score_ras"]
+rasters_to_symbolize2 = ["employment_score_ras"]
 # *****************************************
 # Functions
 
-# Print the current action and time:
+# Print the current action and time
 def print_time_stamp(action):
     current_DT = datetime.datetime.now()
     print(action + " Processing -- "
           + current_DT.strftime("%Y-%b-%d %I:%M:%S %p"))
 
-# Set up the ArcGIS environment variables:
+# Set up the ArcGIS environment variables
 def set_up_env():
     arcpy.env.workspace = gdb_output
     arcpy.env.overwriteOutput = True
@@ -47,21 +56,18 @@ def set_up_env():
     arcpy.env.outputCoordinateSystem = current_extent
     arcpy.env.mask = current_extent
 
+# Recalculate the statistics for every rasters
+def recalculate_statistics():
+    for ras in rasters_to_symbolize:
+        print(ras)
+        arcpy.CalculateStatistics_management(gdb_output + "\\" + ras)
 
+# Apply the chosen symbolization to each raster
 def apply_symbolization():
     mxd = arcpy.mapping.MapDocument("CURRENT")
     df = arcpy.mapping.ListDataFrames(mxd)[0]
     lyrFile = arcpy.mapping.Layer(base_path + "\\Lyr\\cii_overall_score_ras1e.lyr")
 
-    rasters_to_symbolize = ["transportation_score_ras1", "cii_overall_score_ras1",
-                            "health_score_ras1", "transportation_score_ras1",
-                            "density_score_ras1", "ipd_score_ras1",
-                            "pop_density_score_ras1", "employment_score_ras1",
-                            "circuit_trails_score_ras1", "no_vehicle_score_ras1",
-                            "rail_score_ras1", "trolley_score_ras1",
-                            "bus_score_ras1", "obesity_score_ras1",
-                            "nata_resp_score_ras1"]
-    rasters_to_symbolize2 = ["density_score_ras1"]
     for lyr in arcpy.mapping.ListLayers(mxd, "", df):
         if lyr.name in rasters_to_symbolize:
             arcpy.mapping.UpdateLayer(df, lyr, lyrFile, True)
@@ -73,5 +79,6 @@ def apply_symbolization():
 # Begin Main
 print_time_stamp("Start")
 set_up_env()
+recalculate_statistics()
 apply_symbolization()
 print_time_stamp("Done")
