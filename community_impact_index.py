@@ -6,19 +6,22 @@
 #          based on over 10 criteria of economic and social vulnerability.
 # Project: Connectivity and community impact analysis in Arcpy for potential bicycle infrastructure improvements.
 # Extent: 4 PA Counties in Philadelphia suburbs.
-# Last updated: May 3, 2019
+# Last updated: May 9, 2019
 # Author: Delphine Khanna
 # Organization: Bicycle Coalition of Greater Philadelphia
 # Note: This Arcpy script is meant to run in ArcGIS Desktop. It is NOT optimized for complete unsupervised automation.
 # Note2: The prep steps for the 10 datasets is too idiosyncratic to each dataset to
 #        to implement any common functions. So I just process them one after the other.
-# Command: execfile(r'C:\Users\delph\Desktop\Github_repos\Connectivity-And-Impact\community_impact_index.py')
+# Commands for the ArcGIS Python interpreter:
+#    1. To get into the current directory: import os; os.chdir("C:\Users\delph\Desktop\Github_repos\Connectivity-And-Impact")
+#    2. Execute this file: execfile(r'community_impact_index.py')
 # ***************************************
 
+# Import Arcpy modules:
 import arcpy
-import arcpy.sa
-import arcpy.da
-import datetime
+import arcpy.sa # Spatial Analyst
+# Import the functions common to all the project's scripts:
+import utilities
 
 # *********
 # Option switch
@@ -26,50 +29,17 @@ REMOVE_INTERMEDIARY_LAYERS_OPTION = "yes" # or "no"
 
 # *********
 # Set up global variables
-gdb_name = "\\script_output_CII2.gdb"
+gdb_output_name = "\\script_output_CII3.gdb"
 base_path = "C:\\Users\\delph\\Desktop\\GIS\\BCGP\\Connectivity_and_impact"
 data_path = base_path + "\\Data"
 orig_datasets_path = data_path + "\\Orig_datasets"
-gdb_output = data_path + gdb_name
-extent_4_counties = "Geography\\Boundaries_4_PA_counties_dissolved"
-CII_score_overall = "Overall_Scores\\Impact_Score_Overall"
+common_util_path  = data_path +  "\\common_util.gdb"
+gdb_output = data_path + gdb_output_name
 
 # *****************************************
 # Functions
 
-# Print the current action and time
-def print_time_stamp(action):
-    current_DT = datetime.datetime.now()
-    print(action + " Processing -- "
-          + current_DT.strftime("%Y-%b-%d %I:%M:%S %p"))
-
-# Set up the ArcGIS environment variables
-def set_up_env():
-    arcpy.env.workspace = gdb_output
-    arcpy.env.overwriteOutput = True
-    current_extent = extent_4_counties
-    arcpy.env.extent = current_extent
-    arcpy.env.outputCoordinateSystem = current_extent
-    arcpy.env.mask = current_extent
-    arcpy.env.snapraster = current_extent
-    arcpy.env.outputCoordinateSystem = current_extent
-    arcpy.env.cellSize = 30
-
-# Create a new geodatabase and to put all the output for this batch
-def prep_gdb():
-    arcpy.Delete_management(gdb_output)
-    arcpy.CreateFileGDB_management(data_path, gdb_name)
-
-# Optionally remove intermediary layers generated during the analysis
-def remove_intermediary_layers(layers_to_remove):
-    if REMOVE_INTERMEDIARY_LAYERS_OPTION == "yes":
-        mxd=arcpy.mapping.MapDocument("CURRENT")
-        df = arcpy.mapping.ListDataFrames(mxd)[0]
-        for lyr in arcpy.mapping.ListLayers(mxd, "", df):
-            if lyr.name in layers_to_remove:
-                arcpy.mapping.RemoveLayer(df, lyr)
-
-# Prepare the IDP dataset
+# Prepare the Indicator of Potential Disadvantage (IDP) dataset
 def prep_idp_dataset():
     # Local variables
     ipd =  orig_datasets_path + "\\CII\\DVRPC_2016_Indicators_of_Potential_Disadvantage\\DVRPC_2016_Indicators_of_Potential_Disadvantage.shp"
@@ -81,7 +51,7 @@ def prep_idp_dataset():
     arcpy.MakeFeatureLayer_management(ipd, "idp")
     # NO need to reproject (already in NAD 1983 UTM Zone 18N)
     # Clip to the boundaries of 4_counties_dissolved
-    arcpy.SpatialJoin_analysis(ipd, extent_4_counties, ipd_clipped,
+    arcpy.SpatialJoin_analysis(ipd, "extent_4_counties", ipd_clipped,
                             "JOIN_ONE_TO_ONE", "KEEP_COMMON", match_option="HAVE_THEIR_CENTER_IN")
     # Convert into a raster
     arcpy.PolygonToRaster_conversion (ipd_clipped, "IPD_Score", ipd_ras)
@@ -116,7 +86,7 @@ def prep_pop_density_dataset():
     arcpy.Project_management(pa_census_tracts_orig, pa_census_tracts_proj, target_spatial_reference)
 
     # Clip to the boundaries of 4_counties_dissolved
-    arcpy.SpatialJoin_analysis(pa_census_tracts_proj, extent_4_counties, "pa_census_tracts_clipped",
+    arcpy.SpatialJoin_analysis(pa_census_tracts_proj, "extent_4_counties", "pa_census_tracts_clipped",
                               "JOIN_ONE_TO_ONE", "KEEP_COMMON", match_option="HAVE_THEIR_CENTER_IN")
     # Remove the extra tract that got included because of its weirdly-placed centroid
     # XXX This does not work the way it should XXX
@@ -181,7 +151,7 @@ def prep_employment_dataset():
                                           "employment_ras")
     # Clip the raster to the shape of the 4 counties
     arcpy.Clip_management("employment_ras", "#", "employment_clipped_ras",
-                    extent_4_counties, "#", "ClippingGeometry")
+                    "extent_4_counties", "#", "ClippingGeometry")
 
     # Reclassify the raster to 1-to-20 score using the Jenks natural breaks classification
     arcpy.CheckOutExtension("Spatial")
@@ -396,7 +366,7 @@ def prep_nata_resp_dataset():
     arcpy.MakeFeatureLayer_management(ejscreen_orig, "ejscreen_orig")
 
     # Clip to the boundaries of 4_counties_dissolved
-    arcpy.SpatialJoin_analysis(ejscreen_orig, extent_4_counties, "ejscreen_clipped",
+    arcpy.SpatialJoin_analysis(ejscreen_orig, "extent_4_counties", "ejscreen_clipped",
                               "JOIN_ONE_TO_ONE", "KEEP_COMMON", match_option="HAVE_THEIR_CENTER_IN")
     # Convert into a raster
     arcpy.PolygonToRaster_conversion ("ejscreen_clipped", "RESP",
@@ -493,8 +463,9 @@ def compute_all_aggregated_scores():
 # ***************************************
 # Begin Main
 print_time_stamp("Start")
+#load_ancillary_layers()
 set_up_env()
-prep_gdb()
-prep_all_datasets()
+#prep_gdb()
+#prep_all_datasets()
 compute_all_aggregated_scores()
 print_time_stamp("Done")

@@ -9,13 +9,17 @@
 # Author: Delphine Khanna
 # Organization: Bicycle Coalition of Greater Philadelphia
 # Note: This Arcpy script is meant to run in ArcGIS Desktop. It is NOT optimized for complete unsupervised automation.
-    # Command: execfile(r'C:\Users\delph\Desktop\Github_repos\Connectivity-And-Impact\trails.py')
+# Commands for the ArcGIS Python interpreter:
+#    1. To get into the current directory: import os; os.chdir("C:\Users\delph\Desktop\Github_repos\Connectivity-And-Impact")
+#    2. Execute this file: execfile(r'trails.py')
 # ***************************************
 
+# Import Arcpy modules:
 import arcpy
-import arcpy.sa
-import arcpy.da
-import datetime
+import arcpy.sa # Spatial Analyst
+import arcpy.da # Data Access
+# Import the functions common to all the project's scripts:
+import utilities
 
 # *********
 # Option switch
@@ -23,11 +27,11 @@ REMOVE_INTERMEDIARY_LAYERS_OPTION = "yes" # or "no"
 
 # *********
 # Set up global variables
-gdb_name = "\\script_output_trails2.gdb"
+gdb_output_name = "\\script_output_trails2.gdb"
 base_path = "C:\\Users\\delph\\Desktop\\GIS\\BCGP\\Connectivity_and_impact"
 data_path = base_path + "\\Data"
 gdb_common_util = data_path + "\\common_util.gdb"
-gdb_output = data_path + gdb_name
+gdb_output = data_path + gdb_output_name
 orig_datasets_path = data_path + "\\Orig_datasets"
 
 extent_4_counties = "Geography\\Boundaries_4_PA_counties_dissolved"
@@ -41,34 +45,6 @@ county_list = ["Delaware", "Montgomery", "Bucks", "Chester"]
 
 # *****************************************
 # Functions
-
-# Print the current action and time
-def print_time_stamp(action):
-    current_DT = datetime.datetime.now()
-    print(action + " Processing -- "
-          + current_DT.strftime("%Y-%b-%d %I:%M:%S %p"))
-
-# Set up the ArcGIS environment variables
-def set_up_env():
-    arcpy.env.workspace = gdb_output
-    arcpy.env.overwriteOutput = True
-    current_extent = extent_4_counties
-    arcpy.env.extent = current_extent
-    arcpy.env.outputCoordinateSystem = current_extent
-
-# Create a new geodatabase and to put all the output for this batch
-def prep_gdb():
-    arcpy.Delete_management(gdb_output)
-    arcpy.CreateFileGDB_management(data_path, gdb_name)
-
-# Optionally remove intermediary layers generated during the analysis
-def remove_intermediary_layers(layers_to_remove):
-    if REMOVE_INTERMEDIARY_LAYERS_OPTION == "yes":
-        mxd=arcpy.mapping.MapDocument("CURRENT")
-        df = arcpy.mapping.ListDataFrames(mxd)[0]
-        for lyr in arcpy.mapping.ListLayers(mxd, "", df):
-            if lyr.name in layers_to_remove:
-                arcpy.mapping.RemoveLayer(df, lyr)
 
 # Load the main datasets
 def load_main_data():
@@ -288,6 +264,7 @@ def generate_ranked_subsets_per_county():
 # ***************************************
 # Begin Main
 print_time_stamp("Start")
+load_ancillary_layers()
 set_up_env()
 prep_gdb()
 load_main_data()
