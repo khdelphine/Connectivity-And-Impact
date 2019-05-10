@@ -463,9 +463,9 @@ def compute_all_aggregated_scores():
 # ***************************************
 # Begin Main
 print_time_stamp("Start")
-#load_ancillary_layers()
+load_ancillary_layers()
 set_up_env()
 #prep_gdb()
 #prep_all_datasets()
-compute_all_aggregated_scores()
+#compute_all_aggregated_scores()
 print_time_stamp("Done")

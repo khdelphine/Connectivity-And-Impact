@@ -28,7 +28,7 @@ def load_ancillary_layers():
     arcpy.MakeFeatureLayer_management(common_util_path + "\\extent_4_counties", "extent_4_counties")
     arcpy.MakeFeatureLayer_management(common_util_path + "\\boundaries_4_PA_counties", "boundaries_4_PA_counties")
     arcpy.MakeFeatureLayer_management(common_util_path + "\\municipalities_4_PA_counties", "municipalities_4_PA_counties")
-    arcpy.MakeFeatureLayer_management(common_util_path + "\\major_cities_delaware_valley", "major_cities_delaware_valley")
+    arcpy.MakeFeatureLayer_management(common_util_path + "\\major_cities_4_PA_counties", "major_cities_4_PA_counties")
 
 # Set up the ArcGIS environment variables
 def set_up_env():
