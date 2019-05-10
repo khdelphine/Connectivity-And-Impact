@@ -1,7 +1,7 @@
 # ***************************************
 # ***Overview***
 # Script name: symbolization.py
-# Purpose: This Arcpy script applies a chosen symbolization to a list of rasters. 
+# Purpose: This Arcpy script applies a chosen symbolization to a list of rasters.
 # Project: Connectivity and community impact analysis in Arcpy for potential bicycle infrastructure improvements.
 # Extent: 4 PA Counties in Philadelphia suburbs.
 # Last updated: May 9, 2019
@@ -46,7 +46,7 @@ rasters_to_symbolize1 = ["bus_score_ras"]
 def recalculate_statistics():
     for ras in rasters_to_symbolize:
         # First some cleanup (we need to remove the previously displayed layer):
-        remove_intermediary_layers([ras + ""])
+            remove_intermediary_layers([ras + "1"])
 
         # Now build the pyramids, and calculate the statistics on each rasters
         # on the drive. The Calculate_Statistics will also show the raster as a layer:
