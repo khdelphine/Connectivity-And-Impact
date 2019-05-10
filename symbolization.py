@@ -31,7 +31,8 @@ gdb_output = data_path + gdb_output_name
 vectors_to_symbolize = ["major_cities_4_PA_counties",
                         "municipalities_4_PA_counties",
                         "boundaries_4_PA_counties",
-                        "extent_4_counties"]
+                        "extent_4_counties",
+                        "counties_except_delaware"]
 
 # This is the list of all the CII-related rasters:
 rasters_to_symbolize = ["nata_resp_score_ras", "obesity_score_ras",
@@ -108,8 +109,8 @@ def apply_raster_symbolization():
 # ***************************************
 # Main
 print_time_stamp("Start")
-set_up_env()
 load_ancillary_layers()
+set_up_env()
 apply_vector_symbolization()
 #recalculate_raster_statistics()
 #apply_raster_symbolization()
