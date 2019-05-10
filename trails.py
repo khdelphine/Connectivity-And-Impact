@@ -30,13 +30,13 @@ REMOVE_INTERMEDIARY_LAYERS_OPTION = "yes" # or "no"
 gdb_output_name = "\\script_output_trails2.gdb"
 base_path = "C:\\Users\\delph\\Desktop\\GIS\\BCGP\\Connectivity_and_impact"
 data_path = base_path + "\\Data"
-gdb_common_util = data_path + "\\common_util.gdb"
+gdb_CII = data_path + "\\script_output_CII3.gdb"
+common_util_path = data_path + "\\common_util.gdb"
 gdb_output = data_path + gdb_output_name
 orig_datasets_path = data_path + "\\Orig_datasets"
 
-extent_4_counties = "Geography\\Boundaries_4_PA_counties_dissolved"
 boundaries_4_PA_counties = "Geography\\Boundaries_4_PA_counties"
-cii_overall_score_ras = gdb_common_util + "\\cii_overall_score_ras"
+cii_overall_score_ras = gdb_CII + "\\cii_overall_score_ras"
 islands_orig =  orig_datasets_path + "\\Trail_analysis\\DVRPC_Bike_Stress_LTS_1__2_Islands\\DVRPC_Bike_Stress_LTS_1__2_Islands.shp"
 trails_orig = orig_datasets_path + "\\Trail_analysis\\Non_Circuit_Trails\\Non_Circuit_Trails.kml"
 trails_converted_path = orig_datasets_path + "\\Trail_analysis\\Non_Circuit_Trails"
@@ -80,7 +80,7 @@ def prep_islands():
     arcpy.SelectLayerByAttribute_management("islands_gt_0", "CLEAR_SELECTION")
 
     # Select only the island polylines that intersects with 4 PA counties, with a spatial join
-    arcpy.SpatialJoin_analysis("islands_gte_1000m", extent_4_counties, "islands",
+    arcpy.SpatialJoin_analysis("islands_gte_1000m", "extent_4_counties", "islands",
                                "JOIN_ONE_TO_ONE", "KEEP_COMMON", match_option="INTERSECT")
 
     # Add new field "Orig_Length". We will use it later.
@@ -140,7 +140,7 @@ def prep_trails():
     arcpy.DeleteField_management("trails_proj", dropFields)
 
     # Clip to the boundaries of 4_counties_dissolved
-    arcpy.SpatialJoin_analysis("trails_proj", extent_4_counties, "trails",
+    arcpy.SpatialJoin_analysis("trails_proj", "extent_4_counties", "trails",
                             "JOIN_ONE_TO_ONE", "KEEP_COMMON", match_option="INTERSECT")
 
     # Remove intermediary layers

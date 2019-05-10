@@ -56,3 +56,11 @@ def remove_intermediary_layers(layers_to_remove):
         for lyr in arcpy.mapping.ListLayers(mxd, "", df):
             if lyr.name in layers_to_remove:
                 arcpy.mapping.RemoveLayer(df, lyr)
+
+# Get the maximum value for a feature class attribute across all rows
+def get_max(feat_class, attribute):
+    max_value = 0
+    with arcpy.da.SearchCursor(feat_class, attribute) as cursor:
+        for row in cursor:
+             max_value = max(cursor)
+    return max_value[0]

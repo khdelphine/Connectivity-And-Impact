@@ -35,7 +35,7 @@ vectors_to_symbolize = ["major_cities_4_PA_counties",
                         "counties_except_delaware"]
 
 # This is the list of all the CII-related rasters:
-rasters_to_symbolize = ["nata_resp_score_ras", "obesity_score_ras",
+rasters_to_symbolize1 = ["nata_resp_score_ras", "obesity_score_ras",
                         "bus_score_ras", "trolley_score_ras",
                         "rail_score_ras", "no_vehicle_score_ras",
                         "circuit_trails_score_ras", "employment_score_ras",
@@ -43,6 +43,8 @@ rasters_to_symbolize = ["nata_resp_score_ras", "obesity_score_ras",
                         "transportation_score_ras", "density_score_ras",
                         "ipd_score_ras","cii_overall_score_ras"]
 
+# When wanting to test one raster at a time
+rasters_to_symbolize = ["cii_overall_score_ras1"]
 # *****************************************
 # Functions
 
@@ -109,9 +111,8 @@ def apply_raster_symbolization():
 # ***************************************
 # Main
 print_time_stamp("Start")
-load_ancillary_layers()
 set_up_env()
 apply_vector_symbolization()
-#recalculate_raster_statistics()
-#apply_raster_symbolization()
+recalculate_raster_statistics()
+apply_raster_symbolization()
 print_time_stamp("Done")
