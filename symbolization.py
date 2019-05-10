@@ -1,7 +1,7 @@
 # ***************************************
 # ***Overview***
 # Script name: symbolization.py
-# Purpose: This Arcpy script applies a chosen symbolization to a list of rasters.
+# Purpose: This Arcpy script applies chosen symbolizations to a list of vectors and rasters.
 # Project: Connectivity and community impact analysis in Arcpy for potential bicycle infrastructure improvements.
 # Extent: 4 PA Counties in Philadelphia suburbs.
 # Last updated: May 9, 2019
@@ -27,6 +27,12 @@ orig_datasets_path = data_path + "\\Orig_datasets"
 common_util_path  = data_path +  "\\common_util.gdb"
 gdb_output = data_path + gdb_output_name
 
+# This is the list of all the CII-related vectors:
+vectors_to_symbolize = ["major_cities_4_PA_counties",
+                        "municipalities_4_PA_counties",
+                        "boundaries_4_PA_counties",
+                        "extent_4_counties"]
+
 # This is the list of all the CII-related rasters:
 rasters_to_symbolize = ["nata_resp_score_ras", "obesity_score_ras",
                         "bus_score_ras", "trolley_score_ras",
@@ -36,17 +42,38 @@ rasters_to_symbolize = ["nata_resp_score_ras", "obesity_score_ras",
                         "transportation_score_ras", "density_score_ras",
                         "ipd_score_ras","cii_overall_score_ras"]
 
-# Use when wanting to test one raster at a time:
-rasters_to_symbolize1 = ["bus_score_ras"]
 # *****************************************
 # Functions
 
+# Apply the chosen symbolization to each vector layer
+def apply_vector_symbolization():
+    mxd = arcpy.mapping.MapDocument("CURRENT")
+    df = arcpy.mapping.ListDataFrames(mxd)[0]
+
+    # Loop through every layer in the mxd document
+    for lyr in arcpy.mapping.ListLayers(mxd, "", df):
+        # Check if it is in the list of vector layers:
+        if lyr.name in vectors_to_symbolize:
+            # Get the chosen Lyr template used
+            lyrFile = arcpy.mapping.Layer(base_path + "\\Lyr\\" + lyr.name + ".lyr")
+
+            print("Symbolize:" + lyr.name)
+            # Apply the Lyr template to it
+            arcpy.mapping.UpdateLayer(df, lyr, lyrFile, True)
+            ### And reclassify, so that the classification breaks are adapted #
+            ### the current raster
+            ###lyr.symbology.reclassify()
+            ###print(lyr.symbology.classBreakValues)
+    # Refresh the display of the mxd
+    arcpy.RefreshActiveView()
+    arcpy.RefreshTOC()
+
 # Recalculate the statistics for every rasters -- This is necessary for the step
 # lyr.symbology.reclassify() to work properly later on
-def recalculate_statistics():
+def recalculate_raster_statistics():
     for ras in rasters_to_symbolize:
         # First some cleanup (we need to remove the previously displayed layer):
-            remove_intermediary_layers([ras + "1"])
+        remove_intermediary_layers([ras + "1"])
 
         # Now build the pyramids, and calculate the statistics on each rasters
         # on the drive. The Calculate_Statistics will also show the raster as a layer:
@@ -55,7 +82,7 @@ def recalculate_statistics():
         arcpy.CalculateStatistics_management(gdb_output + "\\" + ras)
 
 # Apply the chosen symbolization to each raster
-def apply_symbolization():
+def apply_raster_symbolization():
     mxd = arcpy.mapping.MapDocument("CURRENT")
     df = arcpy.mapping.ListDataFrames(mxd)[0]
     # Get the chosen Lyr template used
@@ -76,10 +103,14 @@ def apply_symbolization():
     arcpy.RefreshActiveView()
     arcpy.RefreshTOC()
 
+
+
 # ***************************************
 # Main
 print_time_stamp("Start")
 set_up_env()
-recalculate_statistics()
-apply_symbolization()
+load_ancillary_layers()
+apply_vector_symbolization()
+#recalculate_raster_statistics()
+#apply_raster_symbolization()
 print_time_stamp("Done")
