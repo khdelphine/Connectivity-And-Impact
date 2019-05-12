@@ -15,17 +15,10 @@
 
 # Import Arcpy modules:
 import arcpy
-# Import the functions common to all the project's scripts:
-import utilities
 
-# *********
-# Set up global variables
-gdb_output_name = "\\script_output_CII3.gdb"
-base_path = "C:\\Users\\delph\\Desktop\\GIS\\BCGP\\Connectivity_and_impact"
-data_path = base_path + "\\Data"
-orig_datasets_path = data_path + "\\Orig_datasets"
-common_util_path  = data_path +  "\\common_util.gdb"
-gdb_output = data_path + gdb_output_name
+# Import local modules:
+from config import *
+from utilities import *
 
 # This is the list of all the CII-related vectors:
 vectors_to_symbolize = ["major_cities_4_PA_counties",
@@ -113,6 +106,6 @@ def apply_raster_symbolization():
 print_time_stamp("Start")
 set_up_env()
 apply_vector_symbolization()
-recalculate_raster_statistics()
-apply_raster_symbolization()
+#recalculate_raster_statistics()
+#apply_raster_symbolization()
 print_time_stamp("Done")

@@ -13,6 +13,7 @@
 
 import arcpy
 import datetime
+from config import *
 
 # *****************************************
 # Functions

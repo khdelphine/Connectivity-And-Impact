@@ -5,7 +5,7 @@
 # Purpose: This Arcpy script identifies the non-circuit trails with the highest connectivity and community impact score.
 # Project: Connectivity and community impact analysis in Arcpy for potential bicycle infrastructure improvements.
 # Extent: 4 PA Counties in Philadelphia suburbs.
-# Last updated: May 3, 2019
+# Last updated: May 11, 2019
 # Author: Delphine Khanna
 # Organization: Bicycle Coalition of Greater Philadelphia
 # Note: This Arcpy script is meant to run in ArcGIS Desktop. It is NOT optimized for complete unsupervised automation.
@@ -18,30 +18,11 @@
 import arcpy
 import arcpy.sa # Spatial Analyst
 import arcpy.da # Data Access
-# Import the functions common to all the project's scripts:
-import utilities
 
-# *********
-# Option switch
-REMOVE_INTERMEDIARY_LAYERS_OPTION = "yes" # or "no"
+# Import local modules:
+from config import *
+from utilities import *
 
-# *********
-# Set up global variables
-gdb_output_name = "\\script_output_trails2.gdb"
-base_path = "C:\\Users\\delph\\Desktop\\GIS\\BCGP\\Connectivity_and_impact"
-data_path = base_path + "\\Data"
-gdb_CII = data_path + "\\script_output_CII3.gdb"
-common_util_path = data_path + "\\common_util.gdb"
-gdb_output = data_path + gdb_output_name
-orig_datasets_path = data_path + "\\Orig_datasets"
-
-boundaries_4_PA_counties = "Geography\\Boundaries_4_PA_counties"
-cii_overall_score_ras = gdb_CII + "\\cii_overall_score_ras"
-islands_orig =  orig_datasets_path + "\\Trail_analysis\\DVRPC_Bike_Stress_LTS_1__2_Islands\\DVRPC_Bike_Stress_LTS_1__2_Islands.shp"
-trails_orig = orig_datasets_path + "\\Trail_analysis\\Non_Circuit_Trails\\Non_Circuit_Trails.kml"
-trails_converted_path = orig_datasets_path + "\\Trail_analysis\\Non_Circuit_Trails"
-
-county_list = ["Delaware", "Montgomery", "Bucks", "Chester"]
 
 # *****************************************
 # Functions
@@ -64,6 +45,16 @@ def load_main_data():
     # Remove intermediary layers
     remove_intermediary_layers(["trails_converted", "islands_orig"])
 
+    # We have the option to load the XXX layer with the CII scores instead of regenerating it:
+    if COMPUTE_ONLY_FINAL_SCORES_OPTION == "yes":
+        arcpy.MakeFeatureLayer_management("islands", "islands")
+        arcpy.MakeFeatureLayer_management("buffered_islands", "buffered_islands")
+        arcpy.MakeFeatureLayer_management("islands_with_score", "islands_with_score")
+        arcpy.MakeFeatureLayer_management("trails", "trails")
+        arcpy.MakeFeatureLayer_management("trails_intersecting", "trails_intersecting")
+        arcpy.MakeFeatureLayer_management("trails_intersecting_gte_2", "trails_intersecting_gte_2")
+
+
 # Prepare the LTS1-2 Islands layer
 def prep_islands():
     # Dissolve the layer on the STRONG field -- there is now only 1 polyline per island
@@ -71,7 +62,7 @@ def prep_islands():
     # Remove the islands where STRONG is 0, as 0 stands in for a catch all category
     arcpy.SelectLayerByAttribute_management("islands_dissolved", "NEW_SELECTION", "STRONG > 0")
     # Save to a new feature class and do some clean up
-    arcpy.CopyFeatures_management("islands_dissolved", islands_gt_0)
+    arcpy.CopyFeatures_management("islands_dissolved", "islands_gt_0")
     arcpy.SelectLayerByAttribute_management("islands_dissolved", "CLEAR_SELECTION")
     # Keep only the islands greater than 1000 meters in length, as the really tiny islands do not seem worth our attention.
     arcpy.SelectLayerByAttribute_management("islands_gt_0", "NEW_SELECTION", "Shape_Length >= 1000")
@@ -108,12 +99,10 @@ def compute_CII_per_island():
     arcpy.CopyFeatures_management("islands", "islands_with_score_with_nulls")
     arcpy.RemoveJoin_management("islands")
 
-    # Remove any islands where the CII_Score_Overall is null
-    arcpy.SelectLayerByAttribute_management("islands_with_score_with_nulls", "NEW_SELECTION",
-                                            "islands_with_CII_scores_table_CII_Score_Overall IS NOT NULL")
-    # Save to a new feature class
-    arcpy.CopyFeatures_management("islands_with_score_with_nulls", "islands_with_score")
-    arcpy.SelectLayerByAttribute_management("islands_with_score_with_nulls", "CLEAR_SELECTION")
+    # Remove any islands where the CII_Score_Overall is null ("> 0" does that)
+    # Note: I did it differently from the other ones, because CopyFeatures_management()
+    #       was not dropping the nulls for some reason
+    arcpy.Select_analysis("islands_with_score_with_nulls", "islands_with_score", 'islands_with_CII_scores_table_CII_Score_Overall > 0')
 
     # Delete some unnecessary fields
     drop_fields = ["islands_with_CII_scores_table_OBJECTID","islands_with_CII_scores_table_STRONG",
@@ -193,14 +182,6 @@ def filter_2_or_more_islands():
     arcpy.CopyFeatures_management("trails_intersecting", "trails_intersecting_gte_2")
     arcpy.SelectLayerByAttribute_management("trails_intersecting", "CLEAR_SELECTION")
 
-# Get the maximum value for a feature class attribute across all rows
-def get_max(feat_class, attribute):
-    max_value = 0
-    with arcpy.da.SearchCursor(feat_class, attribute) as cursor:
-        for row in cursor:
-             max_value = max(cursor)
-    return max_value[0]
-
 # Compute the final score for each Non-Circuit Trail
 def compute_trail_scores():
     # Add new field "Total_connectivity_score" where we will compute the
@@ -264,17 +245,20 @@ def generate_ranked_subsets_per_county():
 # ***************************************
 # Begin Main
 print_time_stamp("Start")
-load_ancillary_layers()
+#if COMPUTE_FROM_SCRATCH_OPTION == "yes":
+#    prep_gdb()
+#load_ancillary_layers()
 set_up_env()
-prep_gdb()
-load_main_data()
-prep_islands()
-compute_CII_per_island()
-prep_trails()
-find_trail_island_intersections()
-filter_2_or_more_islands()
-compute_trail_scores()
-generate_ranked_subsets()
-generate_LTS3_subsets_per_county()
-generate_ranked_subsets_per_county()
+#prep_gdb()
+#load_main_data()
+if COMPUTE_FROM_SCRATCH_OPTION == "yes":
+    #prep_islands()
+    #compute_CII_per_island()
+    #prep_trails()
+    #find_trail_island_intersections()
+    #filter_2_or_more_islands()
+#compute_trail_scores()
+#generate_ranked_subsets()
+#generate_LTS3_subsets_per_county()
+#generate_ranked_subsets_per_county()
 print_time_stamp("Done")
