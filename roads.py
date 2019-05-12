@@ -41,7 +41,6 @@ def load_main_data():
         arcpy.MakeFeatureLayer_management("aggregated_lts3_top30pct_with_cii_scores",
                                         "aggregated_lts3_top30pct_with_cii_scores")
 
-
 # Select the top 30% LTS3 road segments
 def select_top30pct_lts3():
     # Select the top 30% LTS3 road segments using the attribute Top30percent
@@ -78,7 +77,7 @@ def compute_CII_scores_per_lts3():
     # aggregate_all_zonalTables()
     while num_of_rows > 0:
         # At each iteration we will generate a new lts3_with_CII_scores_table
-        lts3_with_CII_scores_table  = gdb_output + "\\lts3_with_CII_scores_table" + str(i)
+        lts3_with_CII_scores_table  = gdb_output_roads + "\\lts3_with_CII_scores_table" + str(i)
         # Compute the CII score per LTS3 segment as zonal statistics. The output is a table
         arcpy.sa.ZonalStatisticsAsTable("lts3_unprocessed", "EDGE", "cii_overall_score_ras1",
                                         lts3_with_CII_scores_table, "DATA", "MEAN")
@@ -128,7 +127,7 @@ def aggregate_all_zonalTables():
     # Initialize local variables
     merge_list =[]
     # Only if entering the number of tables manually
-    # num_of_score_tables=16
+    num_of_score_tables=16
     for j in range(num_of_score_tables):
         merge_list.append("lts3_with_CII_scores_table"+ str(j+1))
     print(merge_list)
@@ -210,21 +209,29 @@ def generate_LTS3_10pct_subsets_per_county():
                                     "lts3_overall_score_ranked_" + county)
         generate_LTS3_orig_10pct_subsets_per_county(county)
 
+load_and_initiate():
+    if COMPUTE_FROM_SCRATCH_OPTION == "yes":
+        prep_gdb()
+    load_ancillary_layers()
+    set_up_env("roads")
+    load_main_data()
+
+preprocess_layers():
+    if COMPUTE_FROM_SCRATCH_OPTION == "yes":
+        select_top30pct_lts3()
+        buffer_lts3()
+        compute_CII_scores_per_lts3()
+        aggregate_all_zonalTables()
+
+generate_scores():
+    compute_overall_scores()
+    #generate_LTS3_subsets_per_county()
+    #generate_LTS3_10pct_subsets_per_county()
 
 # ***************************************
 # Begin Main
 print_time_stamp("Start")
-#if COMPUTE_FROM_SCRATCH_OPTION == "yes":
-    #prep_gdb()
-#load_ancillary_layers()
-#set_up_env()
-#load_main_data()
-if COMPUTE_FROM_SCRATCH_OPTION == "yes":
-    select_top30pct_lts3()
-    buffer_lts3()
-    compute_CII_scores_per_lts3()
-    aggregate_all_zonalTables()
-#compute_overall_scores()
-#generate_LTS3_subsets_per_county()
-#generate_LTS3_10pct_subsets_per_county()
+load_and_initiate()
+preprocess_layers()
+generate_scores()
 print_time_stamp("Done")

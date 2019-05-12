@@ -32,8 +32,14 @@ def load_ancillary_layers():
     arcpy.MakeFeatureLayer_management(common_util_path + "\\major_cities_4_PA_counties", "major_cities_4_PA_counties")
 
 # Set up the ArcGIS environment variables
-def set_up_env():
-    arcpy.env.workspace = gdb_output
+def set_up_env(script_type):
+    if script_type == "CII":
+        arcpy.env.workspace = gdb_output_CII
+    elif script_type == "roads":
+        arcpy.env.workspace = gdb_output_roads
+    else
+        arcpy.env.workspace = gdb_output_trails
+
     arcpy.env.overwriteOutput = True
     current_extent = "extent_4_counties"
     arcpy.env.extent = current_extent

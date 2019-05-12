@@ -23,7 +23,6 @@ import arcpy.da # Data Access
 from config import *
 from utilities import *
 
-
 # *****************************************
 # Functions
 
@@ -241,24 +240,33 @@ def generate_ranked_subsets_per_county():
         generate_top_ranked_subset("trails_intersect_gte_2_" + county, "Total_connectivity_score", "trails_top_score_ranked_" + county)
 
 
+load_and_initiate():
+    if COMPUTE_FROM_SCRATCH_OPTION == "yes":
+        prep_gdb()
+        load_ancillary_layers()
+        set_up_env("trails")
+        prep_gdb()
+        load_main_data()
+
+preprocess_layers():
+    if COMPUTE_FROM_SCRATCH_OPTION == "yes":
+        prep_islands()
+        compute_CII_per_island()
+        prep_trails()
+        find_trail_island_intersections()
+        filter_2_or_more_islands()
+
+generate_scores():
+    compute_trail_scores()
+    generate_ranked_subsets()
+    generate_LTS3_subsets_per_county()
+    generate_ranked_subsets_per_county()
 
 # ***************************************
 # Begin Main
 print_time_stamp("Start")
-#if COMPUTE_FROM_SCRATCH_OPTION == "yes":
-#    prep_gdb()
-#load_ancillary_layers()
-set_up_env()
-#prep_gdb()
-#load_main_data()
-if COMPUTE_FROM_SCRATCH_OPTION == "yes":
-    #prep_islands()
-    #compute_CII_per_island()
-    #prep_trails()
-    #find_trail_island_intersections()
-    #filter_2_or_more_islands()
-#compute_trail_scores()
-#generate_ranked_subsets()
-#generate_LTS3_subsets_per_county()
-#generate_ranked_subsets_per_county()
+load_and_initiate()
+preprocess_layers()
+generate_scores()
+compute_overall_scores()
 print_time_stamp("Done")

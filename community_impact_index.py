@@ -20,21 +20,10 @@
 # Import Arcpy modules:
 import arcpy
 import arcpy.sa # Spatial Analyst
-# Import the functions common to all the project's scripts:
-import utilities
 
-# *********
-# Option switch
-REMOVE_INTERMEDIARY_LAYERS_OPTION = "yes" # or "no"
-
-# *********
-# Set up global variables
-gdb_output_name = "\\script_output_CII3.gdb"
-base_path = "C:\\Users\\delph\\Desktop\\GIS\\BCGP\\Connectivity_and_impact"
-data_path = base_path + "\\Data"
-orig_datasets_path = data_path + "\\Orig_datasets"
-common_util_path  = data_path +  "\\common_util.gdb"
-gdb_output = data_path + gdb_output_name
+# Import local modules:
+from config import *
+from utilities import *
 
 # *****************************************
 # Functions
@@ -43,9 +32,9 @@ gdb_output = data_path + gdb_output_name
 def prep_idp_dataset():
     # Local variables
     ipd =  orig_datasets_path + "\\CII\\DVRPC_2016_Indicators_of_Potential_Disadvantage\\DVRPC_2016_Indicators_of_Potential_Disadvantage.shp"
-    ipd_clipped = gdb_output + "\\ipd_clipped"
-    ipd_ras = gdb_output + "\\ipd_ras"
-    ipd_score_ras = gdb_output + "\\ipd_score_ras"
+    ipd_clipped = gdb_output_CII + "\\ipd_clipped"
+    ipd_ras = gdb_output_CII + "\\ipd_ras"
+    ipd_score_ras = gdb_output_CII + "\\ipd_score_ras"
 
     # Load the feature class into the MXD
     arcpy.MakeFeatureLayer_management(ipd, "idp")
@@ -71,12 +60,12 @@ def prep_pop_density_dataset():
     # Local variables
     pa_census_tracts_orig =  orig_datasets_path + "\\CII\\ACS_2016_population_est\\tl_2016_42_tract\\tl_2016_42_tract.shp"
     population_table_orig =  orig_datasets_path + "\\CII\\ACS_2016_population_est\\ACS_16_5YR_B01003\\ACS_16_5YR_B01003_with_ann.csv"
-    pa_census_tracts_proj = gdb_output + "\\pa_census_tracts_proj"
-    pa_census_tracts_clipped = gdb_output + "\\pa_census_tracts_clipped"
-    pop_table = gdb_output + "\\pop_table"
-    tracts_with_pop = gdb_output + "\\tracts_with_pop"
-    pop_density_ras = gdb_output + "\\pop_density_ras"
-    pop_density_score_ras = gdb_output + "\\pop_density_score_ras"
+    pa_census_tracts_proj = gdb_output_CII + "\\pa_census_tracts_proj"
+    pa_census_tracts_clipped = gdb_output_CII + "\\pa_census_tracts_clipped"
+    pop_table = gdb_output_CII + "\\pop_table"
+    tracts_with_pop = gdb_output_CII + "\\tracts_with_pop"
+    pop_density_ras = gdb_output_CII + "\\pop_density_ras"
+    pop_density_score_ras = gdb_output_CII + "\\pop_density_score_ras"
 
     # Load the feature class and table into the MXD
     arcpy.MakeFeatureLayer_management(pa_census_tracts_orig, "pa_census_tracts_orig")
@@ -97,7 +86,7 @@ def prep_pop_density_dataset():
     arcpy.SelectLayerByAttribute_management("pa_census_tracts_clipped", "CLEAR_SELECTION")
 
     # Import the table with the ACS Total Population data
-    arcpy.TableToTable_conversion(population_table_orig, gdb_output, 'pop_table')
+    arcpy.TableToTable_conversion(population_table_orig, gdb_output_CII, 'pop_table')
 
     # Join the table to the Census tracts
     arcpy.AddJoin_management("pa_census_tracts_clipped1", "GEOID", pop_table, "GEO_id2", "KEEP_ALL")
@@ -167,9 +156,9 @@ def prep_employment_dataset():
 def prep_circuit_trails_dataset():
     # Local variables
     circuit_trails_orig =  orig_datasets_path + "\\CII\\DVRPC_Circuit_Trails_20190328\\DVRPC_Circuit_Trails.shp"
-    circuit_trails = gdb_output + "\\circuit_trails"
-    circuit_trails_distance_ras = gdb_output + "\\circuit_trails_distance_ras"
-    circuit_trails_score_ras = gdb_output + "\\circuit_trails_score_ras"
+    circuit_trails = gdb_output_CII + "\\circuit_trails"
+    circuit_trails_distance_ras = gdb_output_CII + "\\circuit_trails_distance_ras"
+    circuit_trails_score_ras = gdb_output_CII + "\\circuit_trails_score_ras"
     # Load the feature class into the MXD
     arcpy.MakeFeatureLayer_management(circuit_trails_orig, "circuit_trails_orig")
 
@@ -209,7 +198,7 @@ def prep_0_vehicle_dataset():
     arcpy.MakeFeatureLayer_management("pa_census_tracts_clipped1", "pa_census_tracts_clipped1")
 
     # Import the table with ACS Commuting data
-    arcpy.TableToTable_conversion(commuting_table_orig, gdb_output, "commuting_table")
+    arcpy.TableToTable_conversion(commuting_table_orig, gdb_output_CII, "commuting_table")
 
     # Join the table to the Census tracts
     arcpy.AddJoin_management("pa_census_tracts_clipped1", "GEOID", "commuting_table", "GEO_id2", "KEEP_ALL")
@@ -246,10 +235,10 @@ def prep_0_vehicle_dataset():
 def prep_rail_dataset():
     # Local variables
     rail_stops_orig =  orig_datasets_path + "\\CII\\DVRPC_Passenger_Rail_Stations\\DVRPC_Passenger_Rail_Stations.shp"
-    rail_stops_distance_ras = gdb_output + "\\rail_stops_distance_ras"
-    rail_stops_proj = gdb_output + "\\rail_stops_proj"
-    rail_stops_proj2 = gdb_output + "\\rail_stops_proj2"
-    rail_score_ras = gdb_output + "\\rail_score_ras"
+    rail_stops_distance_ras = gdb_output_CII + "\\rail_stops_distance_ras"
+    rail_stops_proj = gdb_output_CII + "\\rail_stops_proj"
+    rail_stops_proj2 = gdb_output_CII + "\\rail_stops_proj2"
+    rail_score_ras = gdb_output_CII + "\\rail_score_ras"
 
     # Load the feature class into the MXD
     arcpy.MakeFeatureLayer_management(rail_stops_orig, "rail_stops_orig")
@@ -289,9 +278,9 @@ def prep_rail_dataset():
 def prep_trolley_dataset():
     # Local variables
     trolley_stops_orig =  orig_datasets_path + "\\CII\\SEPTA__Trolley_Stops\\SEPTA__Trolley_Stops.shp"
-    trolley_stops_distance_ras = gdb_output + "\\trolley_stops_distance_ras"
-    trolley_stops_proj = gdb_output + "\\trolley_stops_proj"
-    trolley_score_ras = gdb_output + "\\trolley_score_ras"
+    trolley_stops_distance_ras = gdb_output_CII + "\\trolley_stops_distance_ras"
+    trolley_stops_proj = gdb_output_CII + "\\trolley_stops_proj"
+    trolley_score_ras = gdb_output_CII + "\\trolley_score_ras"
 
     # Load the feature class into the MXD
     arcpy.MakeFeatureLayer_management(trolley_stops_orig, "trolley_stops_orig")
@@ -325,9 +314,9 @@ def prep_trolley_dataset():
 def prep_bus_dataset():
     # Local variables
     bus_stops_orig =  orig_datasets_path + "\\CII\\SEPTA__Bus_Stops\\SEPTA__Bus_Stops.shp"
-    bus_stops_distance_ras = gdb_output + "\\bus_stops_distance_ras"
-    bus_stops_proj = gdb_output + "\\bus_stops_proj"
-    bus_score_ras = gdb_output + "\\bus_score_ras"
+    bus_stops_distance_ras = gdb_output_CII + "\\bus_stops_distance_ras"
+    bus_stops_proj = gdb_output_CII + "\\bus_stops_proj"
+    bus_score_ras = gdb_output_CII + "\\bus_score_ras"
 
     # Load the feature class into the MXD
     arcpy.MakeFeatureLayer_management(bus_stops_orig, "bus_stops_orig")
@@ -460,12 +449,21 @@ def compute_all_aggregated_scores():
     compute_health_scores()
     compute_CII_overall_scores()
 
+load_and_initiate():
+    load_ancillary_layers()
+    set_up_env("CII")
+    prep_gdb()
+
+preprocess_layers():
+    prep_all_datasets()
+
+generate_scores():
+    compute_all_aggregated_scores()
+
 # ***************************************
 # Begin Main
 print_time_stamp("Start")
-load_ancillary_layers()
-set_up_env()
-#prep_gdb()
-#prep_all_datasets()
-#compute_all_aggregated_scores()
+load_and_initiate()
+preprocess_layers()
+generate_scores()
 print_time_stamp("Done")
