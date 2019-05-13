@@ -2,16 +2,13 @@
 # ***************************************
 # ***Overview***
 # Script name: config.py
-# Purpose: This script defines the global varialbles for all the scripts
+# Purpose: This Python module defines the global varialbles for all the scripts of the project.
 # Project: Connectivity and community impact analysis in Arcpy for potential bicycle infrastructure improvements.
 # Extent: 4 PA Counties in Philadelphia suburbs.
 # Last updated: May 12, 2019
 # Author: Delphine Khanna
 # Organization: Bicycle Coalition of Greater Philadelphia
 # Note: This Arcpy script is meant to run in ArcGIS Desktop. It is NOT optimized for complete unsupervised automation.
-# Commands for the ArcGIS Python interpreter:
-#    1. To get into the current directory: import os; os.chdir("C:\Users\delph\Desktop\Github_repos\Connectivity-And-Impact")
-#    2. Execute this file: execfile(r'config.py')
 # ***************************************
 
 # *********

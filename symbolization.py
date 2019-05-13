@@ -4,13 +4,12 @@
 # Purpose: This Arcpy script applies chosen symbolizations to a list of vectors and rasters.
 # Project: Connectivity and community impact analysis in Arcpy for potential bicycle infrastructure improvements.
 # Extent: 4 PA Counties in Philadelphia suburbs.
-# Last updated: May 9, 2019
+# Last updated: May 12, 2019
 # Author: Delphine Khanna
 # Organization: Bicycle Coalition of Greater Philadelphia
 # Note: This Arcpy script is meant to run in ArcGIS Desktop. It is NOT optimized for complete unsupervised automation.
-# Commands for the ArcGIS Python interpreter:
-#    1. To get into the current directory: import os; os.chdir("C:\Users\delph\Desktop\Github_repos\Connectivity-And-Impact")
-#    2. Execute this file: execfile(r'symbolization.py')
+# Commands for the ArcGIS Python interpreter, to (1) get into the right directory, and (2) execute this script
+#   import os; os.chdir("C:\Users\delph\Desktop\Github_repos\Connectivity-And-Impact"); execfile(r'symbolization.py')
 # ***************************************
 
 # Import Arcpy modules:
@@ -42,7 +41,7 @@ rasters_to_symbolize = ["cii_overall_score_ras1"]
 # Functions
 
 # Apply the chosen symbolization to each vector layer
-def apply_vector_symbolization():
+def symbolize_vectors():
     mxd = arcpy.mapping.MapDocument("CURRENT")
     df = arcpy.mapping.ListDataFrames(mxd)[0]
 
@@ -52,14 +51,9 @@ def apply_vector_symbolization():
         if lyr.name in vectors_to_symbolize:
             # Get the chosen Lyr template used
             lyrFile = arcpy.mapping.Layer(base_path + "\\Lyr\\" + lyr.name + ".lyr")
-
             print("Symbolize:" + lyr.name)
             # Apply the Lyr template to it
             arcpy.mapping.UpdateLayer(df, lyr, lyrFile, True)
-            ### And reclassify, so that the classification breaks are adapted #
-            ### the current raster
-            ###lyr.symbology.reclassify()
-            ###print(lyr.symbology.classBreakValues)
     # Refresh the display of the mxd
     arcpy.RefreshActiveView()
     arcpy.RefreshTOC()
@@ -99,13 +93,13 @@ def apply_raster_symbolization():
     arcpy.RefreshActiveView()
     arcpy.RefreshTOC()
 
-
+def symbolize_rasters():
+    #recalculate_raster_statistics()
+    apply_raster_symbolization()
 
 # ***************************************
 # Main
 print_time_stamp("Start")
-set_up_env()
-apply_vector_symbolization()
-#recalculate_raster_statistics()
-#apply_raster_symbolization()
+symbolize_vectors()
+symbolize_rasters()
 print_time_stamp("Done")

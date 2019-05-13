@@ -5,13 +5,12 @@
 # Purpose: This Arcpy script identifies the non-circuit trails with the highest connectivity and community impact score.
 # Project: Connectivity and community impact analysis in Arcpy for potential bicycle infrastructure improvements.
 # Extent: 4 PA Counties in Philadelphia suburbs.
-# Last updated: May 11, 2019
+# Last updated: May 12, 2019
 # Author: Delphine Khanna
 # Organization: Bicycle Coalition of Greater Philadelphia
 # Note: This Arcpy script is meant to run in ArcGIS Desktop. It is NOT optimized for complete unsupervised automation.
-# Commands for the ArcGIS Python interpreter:
-#    1. To get into the current directory: import os; os.chdir("C:\Users\delph\Desktop\Github_repos\Connectivity-And-Impact")
-#    2. Execute this file: execfile(r'trails.py')
+# Commands for the ArcGIS Python interpreter, to (1) get into the right directory, and (2) execute this script
+#    import os; os.chdir("C:\Users\delph\Desktop\Github_repos\Connectivity-And-Impact"); execfile(r'trails.py')
 # ***************************************
 
 # Import Arcpy modules:
@@ -28,26 +27,27 @@ from utilities import *
 
 # Load the main datasets
 def load_main_data():
-    # Convert the non-circuit trails from kml
-    arcpy.KMLToLayer_conversion (trails_orig, trails_converted_path, "trails_converted")
-    # Reproject the converted non-circuit trails feature class
-    target_spatial_reference = arcpy.SpatialReference('NAD 1983 UTM Zone 18N')
-    arcpy.Project_management("trails_converted\\Polylines", "trails_proj", target_spatial_reference, "WGS_1984_(ITRF00)_To_NAD_1983")
 
     # Load the CII score raster
     arcpy.MakeRasterLayer_management(cii_overall_score_ras, "cii_overall_score_ras1")
 
-    # Load the LTS1-2 Islands feature class, and reproject it
-    arcpy.MakeFeatureLayer_management(islands_orig, "islands_orig")
-    arcpy.Project_management("islands_orig", "islands_proj", target_spatial_reference, "WGS_1984_(ITRF00)_To_NAD_1983")
+    # Either we generate all the layers from scratch:
+    if COMPUTE_FROM_SCRATCH_OPTION == "yes":
+        # Convert the non-circuit trails from kml
+        arcpy.KMLToLayer_conversion (trails_orig, trails_converted_path, "trails_converted")
+        # Reproject the converted non-circuit trails feature class
+        target_spatial_reference = arcpy.SpatialReference('NAD 1983 UTM Zone 18N')
+        arcpy.Project_management("trails_converted\\Polylines", "trails_proj", target_spatial_reference, "WGS_1984_(ITRF00)_To_NAD_1983")
 
-    # Remove intermediary layers
-    remove_intermediary_layers(["trails_converted", "islands_orig"])
+        # Load the LTS1-2 Islands feature class, and reproject it
+        arcpy.MakeFeatureLayer_management(islands_orig, "islands_orig")
+        arcpy.Project_management("islands_orig", "islands_proj", target_spatial_reference, "WGS_1984_(ITRF00)_To_NAD_1983")
 
-    # We have the option to load the XXX layer with the CII scores instead of regenerating it:
-    if COMPUTE_ONLY_FINAL_SCORES_OPTION == "yes":
-        arcpy.MakeFeatureLayer_management("islands", "islands")
-        arcpy.MakeFeatureLayer_management("buffered_islands", "buffered_islands")
+        # Remove intermediary layers
+        remove_intermediary_layers(["trails_converted", "islands_orig"])
+
+    # Or we can load the layers already preprocessed:
+    else:
         arcpy.MakeFeatureLayer_management("islands_with_score", "islands_with_score")
         arcpy.MakeFeatureLayer_management("trails", "trails")
         arcpy.MakeFeatureLayer_management("trails_intersecting", "trails_intersecting")
@@ -239,16 +239,14 @@ def generate_ranked_subsets_per_county():
     for county in county_list:
         generate_top_ranked_subset("trails_intersect_gte_2_" + county, "Total_connectivity_score", "trails_top_score_ranked_" + county)
 
-
-load_and_initiate():
+def load_and_initiate():
     if COMPUTE_FROM_SCRATCH_OPTION == "yes":
         prep_gdb()
-        load_ancillary_layers()
-        set_up_env("trails")
-        prep_gdb()
-        load_main_data()
+    load_ancillary_layers()
+    set_up_env("trails")
+    load_main_data()
 
-preprocess_layers():
+def preprocess_layers():
     if COMPUTE_FROM_SCRATCH_OPTION == "yes":
         prep_islands()
         compute_CII_per_island()
@@ -256,17 +254,17 @@ preprocess_layers():
         find_trail_island_intersections()
         filter_2_or_more_islands()
 
-generate_scores():
+def generate_scores():
     compute_trail_scores()
     generate_ranked_subsets()
     generate_LTS3_subsets_per_county()
     generate_ranked_subsets_per_county()
+    ###???? compute_overall_scores()
 
 # ***************************************
 # Begin Main
 print_time_stamp("Start")
 load_and_initiate()
 preprocess_layers()
-generate_scores()
-compute_overall_scores()
+#generate_scores()
 print_time_stamp("Done")

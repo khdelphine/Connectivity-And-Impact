@@ -5,13 +5,12 @@
 # Purpose: This Arcpy script identifies the LTS3 road segments with the highest connectivity and community impact score.
 # Project: Connectivity and community impact analysis in Arcpy for potential bicycle infrastructure improvements.
 # Extent: 4 PA Counties in Philadelphia suburbs.
-# Last updated: May 11, 2019
+# Last updated: May 12, 2019
 # Author: Delphine Khanna
 # Organization: Bicycle Coalition of Greater Philadelphia
 # Note: This Arcpy script is meant to run in ArcGIS Desktop. It is NOT optimized for complete unsupervised automation.
-# Commands for the ArcGIS Python interpreter:
-#    1. To get into the current directory: import os; os.chdir("C:\Users\delph\Desktop\Github_repos\Connectivity-And-Impact")
-#    2. Execute this file: execfile(r'roads.py')
+# Commands for the ArcGIS Python interpreter, to (1) get into the right directory, and (2) execute this script
+#           import os; os.chdir("C:\Users\delph\Desktop\Github_repos\Connectivity-And-Impact"); execfile(r'roads.py')
 # ***************************************
 
 # Import Arcpy modules:
@@ -36,7 +35,7 @@ def load_main_data():
     # Load the CII overall score raster into the MXD
     arcpy.MakeRasterLayer_management(cii_overall_score_ras, "cii_overall_score_ras1")
 
-    # We have the option to load the LTS3 layer with the CII scores instead of regenerating it:
+    # We have the option to load the layers already preprocessed instead of generating them from scratch:
     if COMPUTE_FROM_SCRATCH_OPTION == "no":
         arcpy.MakeFeatureLayer_management("aggregated_lts3_top30pct_with_cii_scores",
                                         "aggregated_lts3_top30pct_with_cii_scores")
@@ -143,7 +142,7 @@ def compute_overall_scores():
     # Add a new field Total_Score, and put in it the sum of the CII score (normalized
     # by the max CII score) + the connectivity score (normalized by the max connectivity score).
     # The name of the attributes are MEAN and TOTAL, respectively.
-    ##arcpy.AddField_management("aggregated_lts3_top30pct_with_cii_scores", "CII_Score", "Double")
+    arcpy.AddField_management("aggregated_lts3_top30pct_with_cii_scores", "CII_Score", "Double")
     arcpy.CalculateField_management("aggregated_lts3_top30pct_with_cii_scores", "CII_Score",
                                     "!merged_lts3_with_CII_scores_table_MEAN!", "PYTHON_9.3")
 
@@ -209,22 +208,22 @@ def generate_LTS3_10pct_subsets_per_county():
                                     "lts3_overall_score_ranked_" + county)
         generate_LTS3_orig_10pct_subsets_per_county(county)
 
-load_and_initiate():
+def load_and_initiate():
     if COMPUTE_FROM_SCRATCH_OPTION == "yes":
         prep_gdb()
     load_ancillary_layers()
     set_up_env("roads")
     load_main_data()
 
-preprocess_layers():
+def preprocess_layers():
     if COMPUTE_FROM_SCRATCH_OPTION == "yes":
         select_top30pct_lts3()
         buffer_lts3()
         compute_CII_scores_per_lts3()
         aggregate_all_zonalTables()
 
-generate_scores():
-    compute_overall_scores()
+def generate_scores():
+    #compute_overall_scores()
     #generate_LTS3_subsets_per_county()
     #generate_LTS3_10pct_subsets_per_county()
 

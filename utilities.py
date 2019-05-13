@@ -6,7 +6,7 @@
 # scripts of the project.
 # Project: Connectivity and community impact analysis in Arcpy for potential bicycle infrastructure improvements.
 # Extent: 4 PA Counties in Philadelphia suburbs.
-# Last updated: May 9, 2019
+# Last updated: May 12, 2019
 # Author: Delphine Khanna
 # Organization: Bicycle Coalition of Greater Philadelphia
 # ***************************************
@@ -37,7 +37,7 @@ def set_up_env(script_type):
         arcpy.env.workspace = gdb_output_CII
     elif script_type == "roads":
         arcpy.env.workspace = gdb_output_roads
-    else
+    else:
         arcpy.env.workspace = gdb_output_trails
 
     arcpy.env.overwriteOutput = True
