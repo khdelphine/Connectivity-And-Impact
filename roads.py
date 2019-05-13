@@ -92,7 +92,7 @@ def compute_CII_scores_per_lts3():
         # Put any LTS3 segment that didn't not get processed in a new feature class
         # lts3_unprocessed. They can be recognized because some of their attributes are NULL.
         expr = "lts3_with_CII_scores_table" + str(i) + "_MEAN IS NULL"
-        print(expr)
+        #print(expr)
         arcpy.SelectLayerByAttribute_management("lts3_temp", "NEW_SELECTION", expr)
         arcpy.CopyFeatures_management("lts3_temp", "lts3_unprocessed")
         arcpy.SelectLayerByAttribute_management("lts3_temp", "CLEAR_SELECTION")
@@ -140,11 +140,15 @@ def aggregate_all_zonalTables():
 # Compute the overall LTS3 scores
 def compute_overall_scores():
     # Add a new field Total_Score, and put in it the sum of the CII score (normalized
-    # by the max CII score) + the connectivity score (normalized by the max connectivity score).
-    # The name of the attributes are MEAN and TOTAL, respectively.
+    # by the max CII score to truly get a score out of 20) +
+    # the connectivity score (normalized by the max connectivity score).
+    # The name of the original attributes are MEAN and TOTAL, respectively.
     arcpy.AddField_management("aggregated_lts3_top30pct_with_cii_scores", "CII_Score", "Double")
+    mean_max = get_max("aggregated_lts3_top30pct_with_cii_scores",
+                        "merged_lts3_with_CII_scores_table_MEAN")
+    cii_score_norm_expr = "(float(!merged_lts3_with_CII_scores_table_MEAN!) / " + str(mean_max) + ")*20"
     arcpy.CalculateField_management("aggregated_lts3_top30pct_with_cii_scores", "CII_Score",
-                                    "!merged_lts3_with_CII_scores_table_MEAN!", "PYTHON_9.3")
+                                    cii_score_norm_expr, "PYTHON_9.3")
 
     arcpy.AddField_management("aggregated_lts3_top30pct_with_cii_scores", "Connectivity_Score", "Double")
     total_max = get_max("aggregated_lts3_top30pct_with_cii_scores","lts3_top30pct_TOTAL")
@@ -168,6 +172,13 @@ def generate_LTS3_subsets_per_county():
         arcpy.CopyFeatures_management("aggregated_lts3_top30pct_with_cii_scores", "lts3_with_cii_scores_" + county)
         arcpy.SelectLayerByAttribute_management("aggregated_lts3_top30pct_with_cii_scores", "CLEAR_SELECTION")
 
+        # Add a field where we put a normalized overall score so that each county
+        # has a max value that is a true 20
+        arcpy.AddField_management("lts3_with_cii_scores_" + county, "Norm_Overall_Score_Per_County", "Double")
+        max_overall_score = get_max("lts3_with_cii_scores_" + county,"Overall_Score")
+        overall_score_norm_expr = "(float(!Overall_Score!) / " + str(max_overall_score) + ")*20"
+        arcpy.CalculateField_management("lts3_with_cii_scores_" + county, "Norm_Overall_Score_Per_County", overall_score_norm_expr, "PYTHON_9.3")
+
 # Rank an LTS3 subsets according to a specific attribute and select the top third.
 # Also select the top 20 rows.
 def generate_top_ranked_subset(in_feature_class, ranking_attribute, out_feature_class):
@@ -180,7 +191,7 @@ def generate_top_ranked_subset(in_feature_class, ranking_attribute, out_feature_
     # Create a new feature class with the top third rows
     max_rank = get_max(out_feature_class,"Rank")
     one_third_rows = max_rank / 3
-    print(one_third_rows)
+    #print(one_third_rows)
     arcpy.SelectLayerByAttribute_management(out_feature_class, "NEW_SELECTION", "Rank <= " + str(one_third_rows))
     arcpy.CopyFeatures_management(out_feature_class, out_feature_class + "_top10pct" )
     arcpy.SelectLayerByAttribute_management(out_feature_class, "CLEAR_SELECTION")
@@ -190,7 +201,7 @@ def generate_top_ranked_subset(in_feature_class, ranking_attribute, out_feature_
     arcpy.CopyFeatures_management(out_feature_class, out_feature_class + "_top20" )
     arcpy.SelectLayerByAttribute_management(out_feature_class, "CLEAR_SELECTION")
 
-# Generate a top 10% subset for a specific county
+# Generate the original top 10% subset for a specific county
 def generate_LTS3_orig_10pct_subsets_per_county(county_name):
     # Select the top 10% LTS3 road segments using the original attribute Top10percent
     arcpy.SelectLayerByAttribute_management("lts3_with_cii_scores_" + county_name, "NEW_SELECTION",
@@ -200,20 +211,20 @@ def generate_LTS3_orig_10pct_subsets_per_county(county_name):
                                   "lts3_orig_10pct_ranked_" + county_name)
     arcpy.SelectLayerByAttribute_management("lts3_with_cii_scores_" + county_name, "CLEAR_SELECTION")
 
-# Generate top 10% subsets for all 4 counties and on two different sorting criteria
-# (the overall score and the connectivity score only)
+# Generate top 10% subsets for all 4 counties and on two different sorting criteria:
+# the new overall score and the original connectivity score)
 def generate_LTS3_10pct_subsets_per_county():
     for county in county_list:
-        generate_top_ranked_subset("lts3_with_cii_scores_" + county, "Overall_Score",
+        generate_top_ranked_subset("lts3_with_cii_scores_" + county, "Norm_Overall_Score_Per_County",
                                     "lts3_overall_score_ranked_" + county)
         generate_LTS3_orig_10pct_subsets_per_county(county)
 
 def load_and_initiate():
     if COMPUTE_FROM_SCRATCH_OPTION == "yes":
         prep_gdb()
-    load_ancillary_layers()
+    #load_ancillary_layers()
     set_up_env("roads")
-    load_main_data()
+    #load_main_data()
 
 def preprocess_layers():
     if COMPUTE_FROM_SCRATCH_OPTION == "yes":
@@ -224,13 +235,13 @@ def preprocess_layers():
 
 def generate_scores():
     #compute_overall_scores()
-    #generate_LTS3_subsets_per_county()
-    #generate_LTS3_10pct_subsets_per_county()
+    generate_LTS3_subsets_per_county()
+    generate_LTS3_10pct_subsets_per_county()
 
 # ***************************************
 # Begin Main
 print_time_stamp("Start")
 load_and_initiate()
-preprocess_layers()
+#preprocess_layers()
 generate_scores()
 print_time_stamp("Done")

@@ -183,24 +183,38 @@ def filter_2_or_more_islands():
 
 # Compute the final score for each Non-Circuit Trail
 def compute_trail_scores():
-    # Add new field "Total_connectivity_score" where we will compute the
-    # total connectivity score for each trail
-    arcpy.AddField_management("trails_intersecting_gte_2", "Total_connectivity_score", "DOUBLE")
+    #Get the maximum values in the whole table for all 3 subscores
+    length_of_all_islands_max = get_max("trails_intersecting_gte_2","Length_of_All_Islands")
+    num_of_islands_max = get_max("trails_intersecting_gte_2","Num_of_Islands")
+    trail_CII_score_max = get_max("trails_intersecting_gte_2","Trail_CII_Score")
 
-    #Get the maximum values in the whole table for relevant attribute
-    length_of_all_islands_max = get_max("trails_intersecting","Length_of_All_Islands")
-    num_of_islands_max = get_max("trails_intersecting","Num_of_Islands")
-    trail_CII_score_max = get_max("trails_intersecting","Trail_CII_Score")
-    #print(length_of_all_islands_max)
-    #print(num_of_islands_max)
-    #print(trail_CII_score_max)
-    # Put together the overall score formula and apply it
-    expr = ("(((!Length_of_all_Islands! /" + str(length_of_all_islands_max) +
-            " + !Num_of_Islands! / " + str(num_of_islands_max) +
-            " + !Trail_CII_Score!/" + str(trail_CII_score_max) +
-            ")/3)*20)")
-    #print(expr)
-    arcpy.CalculateField_management("trails_intersecting_gte_2", "Total_connectivity_score",
+    # Create 3 fields to add the normalized sub-scores
+    arcpy.AddField_management("trails_intersecting_gte_2", "Norm_Length_of_All_Islands", "DOUBLE")
+    arcpy.AddField_management("trails_intersecting_gte_2", "Norm_Num_of_Islands", "DOUBLE")
+    arcpy.AddField_management("trails_intersecting_gte_2", "Norm_Trail_CII_Score", "DOUBLE")
+
+    # Put together the normalized score formula and apply it, so that its max value is a true 20
+    expr = ("(!Length_of_all_Islands! /" + str(length_of_all_islands_max)+ ")*20")
+    print(expr)
+    arcpy.CalculateField_management("trails_intersecting_gte_2", "Norm_Length_of_All_Islands",
+                                    expr, "PYTHON_9.3")
+    expr = ("(float(!Num_of_Islands!) /" + str(num_of_islands_max)+ ")*20")
+    print(expr)
+    arcpy.CalculateField_management("trails_intersecting_gte_2", "Norm_Num_of_Islands",
+                                    expr, "PYTHON_9.3")
+    expr = ("(!Trail_CII_Score! /" + str(trail_CII_score_max)+ ")*20")
+    print(expr)
+    arcpy.CalculateField_management("trails_intersecting_gte_2", "Norm_Trail_CII_Score",
+                                    expr, "PYTHON_9.3")
+
+    # Add new field "Overall_Score" where we will compute the
+    # total connectivity score for each trail
+    arcpy.AddField_management("trails_intersecting_gte_2", "Overall_Score", "DOUBLE")
+
+    # Put together the overall score formula and apply it; we get a score out of 20
+    expr = ("(!Norm_Length_of_All_Islands! + !Norm_Num_of_Islands! + !Norm_Trail_CII_Score!)/3")
+    print(expr)
+    arcpy.CalculateField_management("trails_intersecting_gte_2", "Overall_Score",
                                     expr, "PYTHON_9.3")
 
 # Rank a feature class features according to a specific attribute value
@@ -217,13 +231,13 @@ def generate_ranked_subset(in_feature_class, ranking_attribute, out_feature_clas
 
 # Generate trail feature classes ranked by the final overall score or only by the length of all intersecting islands
 def generate_ranked_subsets():
-    generate_ranked_subset("trails_intersecting_gte_2", "Total_connectivity_score", "trails_top_score_ranked")
+    generate_ranked_subset("trails_intersecting_gte_2", "Overall_Score", "trails_top_score_ranked")
     generate_ranked_subset("trails_intersecting_gte_2", "Length_of_All_Islands", "trails_longest_islands_ranked")
 
 # Generate scored trail features classes for each county
-def generate_LTS3_subsets_per_county():
+def generate_trail_subsets_per_county():
     # Use a spatial join to add the name of the county for each trail
-    arcpy.SpatialJoin_analysis("trails_intersecting_gte_2", boundaries_4_PA_counties, "trails_intersect_gte2_counties",
+    arcpy.SpatialJoin_analysis("trails_intersecting_gte_2", "boundaries_4_PA_counties", "trails_intersect_gte2_counties",
                                 "JOIN_ONE_TO_ONE", "KEEP_all", match_option="INTERSECT")
     # Generate one feature class per county
     for county in county_list:
@@ -234,17 +248,29 @@ def generate_LTS3_subsets_per_county():
         arcpy.CopyFeatures_management("trails_intersect_gte2_counties", "trails_intersect_gte_2_" + county)
         arcpy.SelectLayerByAttribute_management("trails_intersect_gte2_counties", "CLEAR_SELECTION")
 
+        # Add a field where we put a normalized overall score so that each county
+        # has a max value that is a true 20
+        arcpy.AddField_management("trails_intersect_gte_2_" + county, "Norm_Overall_Score_Per_County", "Double")
+        max_overall_score = get_max("trails_intersect_gte_2_" + county,"Overall_Score")
+        if county == "Delaware":
+            max_overall_score = 14.749317
+        print("trails_intersect_gte_2_" + county)
+        print(max_overall_score)
+        overall_score_norm_expr = "(float(!Overall_Score!) / " + str(max_overall_score) + ")*20"
+        print(overall_score_norm_expr)
+        arcpy.CalculateField_management("trails_intersect_gte_2_" + county, "Norm_Overall_Score_Per_County", overall_score_norm_expr, "PYTHON_9.3")
+
 # Rank each county-specific trail feature class
 def generate_ranked_subsets_per_county():
     for county in county_list:
-        generate_top_ranked_subset("trails_intersect_gte_2_" + county, "Total_connectivity_score", "trails_top_score_ranked_" + county)
+        generate_ranked_subset("trails_intersect_gte_2_" + county, "Norm_Overall_Score_Per_County", "trails_top_score_ranked_" + county)
 
 def load_and_initiate():
     if COMPUTE_FROM_SCRATCH_OPTION == "yes":
         prep_gdb()
-    load_ancillary_layers()
+    #load_ancillary_layers()
     set_up_env("trails")
-    load_main_data()
+    #load_main_data()
 
 def preprocess_layers():
     if COMPUTE_FROM_SCRATCH_OPTION == "yes":
@@ -255,16 +281,15 @@ def preprocess_layers():
         filter_2_or_more_islands()
 
 def generate_scores():
-    compute_trail_scores()
-    generate_ranked_subsets()
-    generate_LTS3_subsets_per_county()
+    #compute_trail_scores()
+    #generate_ranked_subsets()
+    #generate_trail_subsets_per_county()
     generate_ranked_subsets_per_county()
-    ###???? compute_overall_scores()
 
 # ***************************************
 # Begin Main
 print_time_stamp("Start")
 load_and_initiate()
 preprocess_layers()
-#generate_scores()
+generate_scores()
 print_time_stamp("Done")
