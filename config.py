@@ -26,6 +26,7 @@ data_path = base_path + "\\Data"
 common_util_path = data_path + "\\common_util.gdb"
 orig_datasets_path = data_path + "\\Orig_datasets"
 county_list = ["Delaware", "Montgomery", "Bucks", "Chester"]
+county_list1 = ["Delaware"]
 
 # Set up global variables used in the CII script
 gdb_output_CII_name = "\\script_output_CII3.gdb"

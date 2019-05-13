@@ -69,5 +69,6 @@ def get_max(feat_class, attribute):
     max_value = 0
     with arcpy.da.SearchCursor(feat_class, attribute) as cursor:
         for row in cursor:
-             max_value = max(cursor)
+            #print(max(cursor))
+            max_value = max(cursor)
     return max_value[0]
